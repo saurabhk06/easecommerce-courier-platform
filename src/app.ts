@@ -8,6 +8,7 @@ import { requestContext } from './middleware/request-context.js';
 import { createHealthRouter, type ReadinessCheck } from './modules/health/health.routes.js';
 import { createBatchRouter } from './modules/batches/batch.routes.js';
 import type { BatchService } from './modules/batches/batch.service.js';
+import { createApiDocsRouter } from './modules/docs/api-docs.routes.js';
 import { createOrderRouter } from './modules/orders/order.routes.js';
 import type { OrderService } from './modules/orders/order.service.js';
 
@@ -39,6 +40,7 @@ export function createApp({
   app.use(express.json({ limit: '1mb' }));
 
   app.use('/health', createHealthRouter(readinessChecks));
+  app.use('/api-docs', createApiDocsRouter());
   if (orderService) app.use('/api/v1/orders', createOrderRouter(orderService, batchService));
   if (batchService) app.use('/api/v1/batches', createBatchRouter(batchService));
 

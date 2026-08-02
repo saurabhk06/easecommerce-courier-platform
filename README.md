@@ -2,6 +2,8 @@
 
 A courier-agnostic shipment service built for the EaseCommerce backend assignment. The service exposes one normalized API while courier-specific payloads and behavior stay behind adapters.
 
+Interactive API documentation: `http://localhost:3000/api-docs/`. See [API_EXAMPLES.md](API_EXAMPLES.md) for copy-paste curl flows and [openapi.yaml](openapi.yaml) for the complete contract.
+
 The repository is being built in small, verified checkpoints. The current baseline contains the Express/TypeScript foundation, PostgreSQL persistence, a pluggable courier registry, MockCourier, the UrbaneBolt adapter, unified create/read/track/cancel workflows, and a Redis/BullMQ background worker for bulk shipments.
 
 ## Local setup
@@ -53,6 +55,8 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5433/courier_platform?sche
 ```http
 GET /health/live
 GET /health/ready
+GET /api-docs/
+GET /api-docs/openapi.json
 POST /api/v1/orders
 GET /api/v1/orders/:orderId
 GET /api/v1/orders/:orderId/track

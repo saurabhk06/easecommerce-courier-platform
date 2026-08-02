@@ -1,0 +1,611 @@
+openapi: 3.1.0
+info:
+  title: EaseCommerce Courier Platform API
+  version: 1.0.0
+  description: |
+    Courier-agnostic shipment orchestration API. Public contracts use normalized
+    fields; courier-specific payloads remain internal audit data.
+servers:
+  - url: http://localhost:3000
+    description: Local development
+tags:
+  - name: Health
+  - name: Orders
+  - name: Batches
+paths:
+  /health/live:
+    get:
+      tags: [Health]
+      summary: Process liveness
+      operationId: getLiveness
+      responses:
+        '200':
+          description: The API process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Dependency readiness
+      operationId: getReadiness
+      responses:
+        '200':
+          description: PostgreSQL and Redis are ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: At least one required dependency is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/v1/orders:
+    post:
+      tags: [Orders]
+      summary: Create one courier shipment
+      description: |
+        `order_id` is the idempotency key. An identical successful replay returns
+        the existing shipment without calling the courier again. Reusing the ID
+        with changed data returns `ORDER_ID_CONFLICT`.
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+            examples:
+              mockNextDay:
+                $ref: '#/components/examples/CreateOrder'
+      responses:
+        '201':
+          description: Shipment created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
+        '200':
+          description: Identical replay of an existing successful order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
+        '202':
+          description: Another request is already processing this order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/CourierRejected'
+        '502':
+          $ref: '#/components/responses/CourierAuthenticationFailed'
+        '503':
+          $ref: '#/components/responses/DependencyUnavailable'
+  /api/v1/orders/bulk:
+    post:
+      tags: [Batches]
+      summary: Queue 1–100 shipments
+      description: |
+        Validates the complete input before writing anything. Runtime courier
+        failures are isolated per order and may produce a partially completed batch.
+      operationId: createOrderBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkOrderRequest'
+      responses:
+        '202':
+          description: Orders were persisted and queued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchAcceptedEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/DependencyUnavailable'
+  /api/v1/orders/{orderId}:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+    get:
+      tags: [Orders]
+      summary: Retrieve a saved order
+      operationId: getOrder
+      responses:
+        '200':
+          description: Current normalized order state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/orders/{orderId}/track:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+    get:
+      tags: [Orders]
+      summary: Refresh and retrieve tracking history
+      description: New courier events are appended and deduplicated; audit history is immutable.
+      operationId: trackOrder
+      responses:
+        '200':
+          description: Normalized current state and tracking history.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/DependencyUnavailable'
+  /api/v1/orders/{orderId}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+    post:
+      tags: [Orders]
+      summary: Cancel a shipment
+      description: Requires no request body. Repeating cancellation is a successful no-op.
+      operationId: cancelOrder
+      responses:
+        '200':
+          description: Shipment is cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelledOrderEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/DependencyUnavailable'
+  /api/v1/batches/{batchId}:
+    parameters:
+      - $ref: '#/components/parameters/BatchId'
+    get:
+      tags: [Batches]
+      summary: Retrieve batch progress and per-order results
+      operationId: getBatch
+      responses:
+        '200':
+          description: Current batch summary and normalized results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  parameters:
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_-]+$'
+        maxLength: 64
+      example: EC-API-001
+    BatchId:
+      name: batchId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Validation failed or the courier identifier is unsupported.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Conflict:
+      description: The order ID conflicts or the shipment cannot transition as requested.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: The requested order or batch does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    CourierRejected:
+      description: The courier rejected valid normalized input.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    CourierAuthenticationFailed:
+      description: Authentication with the selected courier failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    DependencyUnavailable:
+      description: A courier or queue dependency is unavailable, or reconciliation is required.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, ready, not_ready]
+    Address:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - phone
+        - address_line_1
+        - address_type
+        - city
+        - state
+        - country
+        - postal_code
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        phone:
+          type: string
+          pattern: '^\+?\d{8,16}$'
+        email:
+          type: string
+          format: email
+        address_line_1:
+          type: string
+          minLength: 5
+          maxLength: 200
+        address_line_2:
+          type: string
+          maxLength: 200
+        address_type:
+          type: string
+          enum: [HOME, BUSINESS, OTHER]
+        city:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+          const: IN
+        postal_code:
+          type: string
+          pattern: '^\d{6}$'
+    Package:
+      type: object
+      additionalProperties: false
+      required:
+        - weight_kg
+        - length_cm
+        - width_cm
+        - height_cm
+        - pieces
+        - item_description
+        - item_quantity
+      properties:
+        weight_kg: { type: number, exclusiveMinimum: 0 }
+        length_cm: { type: number, exclusiveMinimum: 0 }
+        width_cm: { type: number, exclusiveMinimum: 0 }
+        height_cm: { type: number, exclusiveMinimum: 0 }
+        pieces: { type: integer, minimum: 1, maximum: 100 }
+        item_description: { type: string, minLength: 1, maxLength: 250 }
+        item_quantity: { type: integer, minimum: 1, maximum: 10000 }
+    Payment:
+      type: object
+      description: PREPAID requires collectable_amount 0; COD requires a positive amount.
+      additionalProperties: false
+      required: [mode, collectable_amount, declared_value]
+      properties:
+        mode:
+          type: string
+          enum: [PREPAID, COD]
+        collectable_amount: { type: number, minimum: 0, multipleOf: 0.01 }
+        declared_value: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
+    Invoice:
+      type: object
+      description: Invoice value must equal payment.declared_value and date cannot be in the future.
+      additionalProperties: false
+      required: [number, date, value]
+      properties:
+        number: { type: string, minLength: 1, maxLength: 64 }
+        date: { type: string, format: date }
+        value: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
+    CreateOrderRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - order_id
+        - courier_partner
+        - service_level
+        - consignee
+        - shipper
+        - package
+        - payment
+        - invoice
+      properties:
+        order_id:
+          type: string
+          pattern: '^[A-Za-z0-9_-]+$'
+          maxLength: 64
+        courier_partner:
+          type: string
+          enum: [mock, urbanebolt]
+        service_level:
+          type: string
+          enum: [SAME_DAY, NEXT_DAY]
+        consignee:
+          $ref: '#/components/schemas/Address'
+        shipper:
+          $ref: '#/components/schemas/Address'
+        return_address:
+          description: Optional; defaults to the shipper address.
+          $ref: '#/components/schemas/Address'
+        package:
+          $ref: '#/components/schemas/Package'
+        payment:
+          $ref: '#/components/schemas/Payment'
+        invoice:
+          $ref: '#/components/schemas/Invoice'
+    BulkOrderRequest:
+      type: object
+      additionalProperties: false
+      required: [orders]
+      properties:
+        orders:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/CreateOrderRequest'
+    ProcessingStatus:
+      type: string
+      enum: [QUEUED, PROCESSING, SUCCEEDED, FAILED, RECONCILIATION_REQUIRED]
+    ShipmentStatus:
+      type: string
+      enum:
+        - PENDING
+        - CREATED
+        - PICKED_UP
+        - IN_TRANSIT
+        - OUT_FOR_DELIVERY
+        - DELIVERED
+        - CANCELLED
+        - RTO_INITIATED
+        - RETURNED
+        - FAILED
+        - UNKNOWN
+    Order:
+      type: object
+      required:
+        - order_id
+        - courier_partner
+        - courier_shipment_id
+        - awb_number
+        - shipment_status
+        - processing_status
+        - created_at
+        - updated_at
+      properties:
+        order_id: { type: string }
+        courier_partner: { type: string }
+        courier_shipment_id: { type: [string, 'null'] }
+        awb_number: { type: [string, 'null'] }
+        shipment_status:
+          $ref: '#/components/schemas/ShipmentStatus'
+        processing_status:
+          $ref: '#/components/schemas/ProcessingStatus'
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    OrderEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Order'
+    CancelledOrderEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Order'
+            - type: object
+              required: [cancelled_at]
+              properties:
+                cancelled_at: { type: string, format: date-time }
+    TrackingEvent:
+      type: object
+      required: [status, description, location, occurred_at]
+      properties:
+        status:
+          $ref: '#/components/schemas/ShipmentStatus'
+        description: { type: [string, 'null'] }
+        location: { type: [string, 'null'] }
+        occurred_at: { type: string, format: date-time }
+    Tracking:
+      type: object
+      required:
+        - order_id
+        - courier_partner
+        - awb_number
+        - shipment_status
+        - last_updated_at
+        - events
+      properties:
+        order_id: { type: string }
+        courier_partner: { type: string }
+        awb_number: { type: [string, 'null'] }
+        shipment_status:
+          $ref: '#/components/schemas/ShipmentStatus'
+        last_updated_at: { type: string, format: date-time }
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrackingEvent'
+    TrackingEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Tracking'
+    BatchAccepted:
+      type: object
+      required: [batch_id, status, total, status_url]
+      properties:
+        batch_id: { type: string, format: uuid }
+        status: { type: string, const: QUEUED }
+        total: { type: integer, minimum: 1, maximum: 100 }
+        status_url: { type: string }
+    BatchAcceptedEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/BatchAccepted'
+    BatchOrderResult:
+      type: object
+      required:
+        - order_id
+        - courier_partner
+        - processing_status
+        - shipment_status
+        - awb_number
+      properties:
+        order_id: { type: string }
+        courier_partner: { type: string }
+        processing_status:
+          $ref: '#/components/schemas/ProcessingStatus'
+        shipment_status:
+          $ref: '#/components/schemas/ShipmentStatus'
+        awb_number: { type: [string, 'null'] }
+        error:
+          $ref: '#/components/schemas/PublicOrderError'
+    Batch:
+      type: object
+      required:
+        - batch_id
+        - status
+        - total
+        - succeeded
+        - failed
+        - pending
+        - created_at
+        - updated_at
+        - results
+      properties:
+        batch_id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [QUEUED, PROCESSING, COMPLETED, PARTIALLY_COMPLETED, FAILED]
+        total: { type: integer, minimum: 1 }
+        succeeded: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchOrderResult'
+    BatchEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Batch'
+    PublicOrderError:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+    ErrorDetail:
+      type: object
+      required: [message]
+      properties:
+        field: { type: string }
+        message: { type: string }
+    Error:
+      type: object
+      required: [code, message, request_id]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        request_id:
+          type: string
+          description: Generated UUID or caller-provided x-request-id value.
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+  examples:
+    CreateOrder:
+      value:
+        order_id: EC-API-001
+        courier_partner: mock
+        service_level: NEXT_DAY
+        consignee:
+          name: Aarav Sharma
+          phone: '+919876543210'
+          email: aarav@example.com
+          address_line_1: 12 MG Road
+          address_type: HOME
+          city: Bengaluru
+          state: Karnataka
+          country: IN
+          postal_code: '560001'
+        shipper:
+          name: EaseCommerce Warehouse
+          phone: '+919811111111'
+          address_line_1: Plot 18, Sector 17
+          address_type: BUSINESS
+          city: Gurugram
+          state: Haryana
+          country: IN
+          postal_code: '122001'
+        package:
+          weight_kg: 1.25
+          length_cm: 20
+          width_cm: 15
+          height_cm: 10
+          pieces: 1
+          item_description: Cotton shirts
+          item_quantity: 2
+        payment:
+          mode: COD
+          collectable_amount: 1499
+          declared_value: 1499
+        invoice:
+          number: INV-001
+          date: '2025-08-03'
+          value: 1499
