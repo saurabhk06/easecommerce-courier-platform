@@ -2,7 +2,7 @@
 
 A courier-agnostic shipment service built for the EaseCommerce backend assignment. The service exposes one normalized API while courier-specific payloads and behavior stay behind adapters.
 
-The repository is being built in small, verified checkpoints. The current baseline contains the Express/TypeScript foundation, PostgreSQL persistence, a pluggable courier registry, MockCourier, the UrbaneBolt adapter, and unified create/read/track/cancel order workflows.
+The repository is being built in small, verified checkpoints. The current baseline contains the Express/TypeScript foundation, PostgreSQL persistence, a pluggable courier registry, MockCourier, the UrbaneBolt adapter, unified create/read/track/cancel workflows, and a Redis/BullMQ background worker for bulk shipments.
 
 ## Local setup
 
@@ -20,7 +20,15 @@ pnpm prisma:deploy
 pnpm dev
 ```
 
-The placeholder UrbaneBolt values are sufficient for starting the foundation; real credentials will be needed only when exercising the UrbaneBolt adapter.
+Run the asynchronous shipment worker in a second terminal:
+
+```bash
+pnpm dev:worker
+```
+
+Redis-backed jobs use bounded exponential retries and configurable worker concurrency. PostgreSQL remains the source of truth for order and batch state; Redis only coordinates background work.
+
+The placeholder UrbaneBolt values are sufficient for starting the application with MockCourier; real credentials are needed only when exercising the UrbaneBolt adapter.
 
 ## Quality checks
 

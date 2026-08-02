@@ -6,6 +6,8 @@ const environmentSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.url(),
+  BULK_WORKER_CONCURRENCY: z.coerce.number().int().positive().max(50).default(5),
+  BULK_JOB_ATTEMPTS: z.coerce.number().int().positive().max(10).default(3),
   COURIER_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
   COURIER_RETRY_COUNT: z.coerce.number().int().min(0).max(10).default(3),
   COURIER_RETRY_BASE_DELAY_MS: z.coerce.number().int().positive().default(250),

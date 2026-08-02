@@ -19,6 +19,8 @@ describe('parseEnvironment', () => {
       PORT: 3000,
       COURIER_TIMEOUT_MS: 5000,
       COURIER_RETRY_COUNT: 3,
+      BULK_WORKER_CONCURRENCY: 5,
+      BULK_JOB_ATTEMPTS: 3,
     });
   });
 

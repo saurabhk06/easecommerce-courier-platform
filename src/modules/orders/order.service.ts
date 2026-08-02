@@ -36,7 +36,7 @@ export class OrderService {
     this.clock = dependencies.clock ?? (() => new Date());
   }
 
-  async createOrder(request: CreateOrderRequest): Promise<CreateOrderOutcome> {
+  async createOrder(request: CreateOrderRequest, batchId?: string): Promise<CreateOrderOutcome> {
     const normalizedInput = toCreateShipmentInput(request);
     const adapter = this.dependencies.couriers.get(request.courier_partner);
     const requestFingerprint = stableHash(normalizedInput);
@@ -46,6 +46,7 @@ export class OrderService {
       courierPartner: request.courier_partner,
       serviceLevel: request.service_level,
       normalizedRequest: toJsonValue(normalizedInput),
+      ...(batchId ? { batchId } : {}),
     });
 
     if (!existingOrNew.created) {

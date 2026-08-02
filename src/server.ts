@@ -4,6 +4,7 @@ import { createApp } from './app.js';
 import { parseEnvironment } from './config/env.js';
 import { createLogger } from './config/logger.js';
 import { Database } from './infrastructure/database.js';
+import { checkRedisHealth, closeRedisClient, createRedisClient } from './infrastructure/redis.js';
 import { createCourierRegistry } from './modules/couriers/create-courier-registry.js';
 import { OrderRepository } from './modules/orders/order.repository.js';
 import { OrderService } from './modules/orders/order.service.js';
@@ -12,6 +13,8 @@ import { TrackingRepository } from './modules/orders/tracking.repository.js';
 const env = parseEnvironment(process.env);
 const logger = createLogger(env.LOG_LEVEL);
 const database = new Database();
+const redis = createRedisClient(env.REDIS_URL, 'api-readiness');
+redis.on('error', (error) => logger.error({ err: error }, 'Redis connection error'));
 
 let server: Server | undefined;
 let isShuttingDown = false;
@@ -27,7 +30,7 @@ async function start(): Promise<void> {
 
   const app = createApp({
     logger,
-    readinessChecks: [() => database.checkHealth()],
+    readinessChecks: [() => database.checkHealth(), () => checkRedisHealth(redis)],
     orderService,
   });
 
@@ -50,6 +53,7 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
 
   try {
     await closeHttpServer(server);
+    await closeRedisClient(redis);
     await database.disconnect();
     clearTimeout(forceShutdown);
     logger.info('Graceful shutdown completed');
@@ -75,5 +79,6 @@ process.on('SIGINT', () => void shutdown('SIGINT'));
 
 start().catch((error: unknown) => {
   logger.fatal({ err: error }, 'API server failed to start');
+  redis.disconnect();
   process.exit(1);
 });
