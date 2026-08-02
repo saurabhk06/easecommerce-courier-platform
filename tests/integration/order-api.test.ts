@@ -1,9 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import pino from 'pino';
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/app.js';
 import { CourierRegistry } from '../../src/modules/couriers/courier-registry.js';
+import { CourierError } from '../../src/modules/couriers/courier-error.js';
 import { MockCourierAdapter } from '../../src/modules/couriers/mock/mock-courier.adapter.js';
 import { OrderRepository } from '../../src/modules/orders/order.repository.js';
 import { OrderService } from '../../src/modules/orders/order.service.js';
@@ -20,10 +21,11 @@ const database = new PrismaClient({ datasourceUrl: databaseUrl });
 const fixedTime = new Date('2026-08-03T12:00:00.000Z');
 const orders = new OrderRepository(database);
 const tracking = new TrackingRepository(database);
+const mockCourier = new MockCourierAdapter({ clock: () => fixedTime, latencyMs: 25 });
 const orderService = new OrderService({
   orders,
   tracking,
-  couriers: new CourierRegistry([new MockCourierAdapter({ clock: () => fixedTime })]),
+  couriers: new CourierRegistry([mockCourier]),
   clock: () => fixedTime,
 });
 const app = createApp({ logger: pino({ level: 'silent' }), orderService });
@@ -140,5 +142,68 @@ describe('unified order API', () => {
       },
     });
     await expect(database.order.count()).resolves.toBe(0);
+  });
+
+  it('allows only one courier call under concurrent identical submissions', async () => {
+    const createShipment = vi.spyOn(mockCourier, 'createShipment');
+
+    const responses = await Promise.all(
+      Array.from({ length: 8 }, () => request(app).post('/api/v1/orders').send(createOrderRequest)),
+    );
+
+    expect(responses.filter((response) => response.status === 201)).toHaveLength(1);
+    expect(responses.every((response) => [201, 202].includes(response.status))).toBe(true);
+    expect(createShipment).toHaveBeenCalledOnce();
+    await expect(database.order.count()).resolves.toBe(1);
+    createShipment.mockRestore();
+  });
+
+  it('does not let a stale tracking response overwrite a terminal shipment state', async () => {
+    await request(app).post('/api/v1/orders').send(createOrderRequest);
+    await database.order.update({
+      where: { orderId: createOrderRequest.order_id },
+      data: { shipmentStatus: 'DELIVERED' },
+    });
+
+    const response = await request(app).get(`/api/v1/orders/${createOrderRequest.order_id}/track`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ data: { shipment_status: 'DELIVERED' } });
+    await expect(
+      database.order.findUniqueOrThrow({ where: { orderId: createOrderRequest.order_id } }),
+    ).resolves.toMatchObject({ shipmentStatus: 'DELIVERED' });
+  });
+
+  it('persists uncertain creation outcomes for reconciliation without leaking raw details', async () => {
+    const uncertainCourier = new MockCourierAdapter();
+    vi.spyOn(uncertainCourier, 'createShipment').mockRejectedValue(
+      new CourierError('UNKNOWN_OUTCOME', 'connection reset', false, {
+        upstream_secret: 'private-courier-diagnostic',
+      }),
+    );
+    const uncertainService = new OrderService({
+      orders,
+      tracking,
+      couriers: new CourierRegistry([uncertainCourier]),
+    });
+    const uncertainApp = createApp({
+      logger: pino({ level: 'silent' }),
+      orderService: uncertainService,
+    });
+
+    const response = await request(uncertainApp)
+      .post('/api/v1/orders')
+      .send({ ...createOrderRequest, order_id: 'EC-UNCERTAIN-001' });
+
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({ error: { code: 'SHIPMENT_STATE_UNKNOWN' } });
+    expect(JSON.stringify(response.body)).not.toContain('private-courier-diagnostic');
+    await expect(
+      database.order.findUniqueOrThrow({ where: { orderId: 'EC-UNCERTAIN-001' } }),
+    ).resolves.toMatchObject({
+      processingStatus: 'RECONCILIATION_REQUIRED',
+      failureCode: 'SHIPMENT_STATE_UNKNOWN',
+      failureDetails: { upstream_secret: 'private-courier-diagnostic' },
+    });
   });
 });

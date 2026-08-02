@@ -164,6 +164,35 @@ describe('bulk order API', () => {
     await expect(database.batch.count()).resolves.toBe(0);
     await expect(database.order.count()).resolves.toBe(1);
   });
+
+  it('marks the saved batch and every order failed when Redis enqueueing fails', async () => {
+    const failingBatchService = new BatchService({
+      batches: batchRepository,
+      orders: orderService,
+      queue: { enqueueBatch: () => Promise.reject(new Error('Redis unavailable')) },
+    });
+    const failingApp = createApp({ logger, orderService, batchService: failingBatchService });
+
+    const response = await request(failingApp)
+      .post('/api/v1/orders/bulk')
+      .send({ orders: [withOrderId('EC-QUEUE-001'), withOrderId('EC-QUEUE-002')] });
+
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({ error: { code: 'QUEUE_UNAVAILABLE' } });
+    const savedBatch = await database.batch.findFirstOrThrow({ include: { orders: true } });
+    expect(savedBatch).toMatchObject({
+      status: 'FAILED',
+      totalCount: 2,
+      successCount: 0,
+      failureCount: 2,
+    });
+    expect(savedBatch.orders).toHaveLength(2);
+    expect(
+      savedBatch.orders.every(
+        (order) => order.processingStatus === 'FAILED' && order.failureCode === 'QUEUE_UNAVAILABLE',
+      ),
+    ).toBe(true);
+  });
 });
 
 function withOrderId(orderId: string) {

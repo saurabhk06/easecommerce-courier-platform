@@ -74,6 +74,48 @@ describe('UrbaneBoltClient', () => {
       }),
     ).rejects.toMatchObject({ kind: 'UNKNOWN_OUTCOME', retryable: false });
   });
+
+  it('does not retry an ordinary courier validation error', async () => {
+    const request = vi
+      .fn()
+      .mockRejectedValue(axiosFailure(422, { message: 'destination pincode is not serviceable' }));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const auth = {
+      getToken: vi.fn().mockResolvedValue('token'),
+      invalidate: vi.fn(),
+    } as unknown as UrbaneBoltAuthProvider;
+    const client = new UrbaneBoltClient({ request } as unknown as AxiosInstance, auth, {
+      retries: 3,
+      baseDelayMs: 100,
+      sleep,
+    });
+
+    await expect(client.request({ method: 'POST', path: '/manifest' })).rejects.toMatchObject({
+      kind: 'REQUEST_REJECTED',
+      retryable: false,
+    });
+    expect(request).toHaveBeenCalledOnce();
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it('replays authentication at most once when refreshed credentials are also rejected', async () => {
+    const request = vi.fn().mockRejectedValue(axiosFailure(401, { detail: 'unauthorized' }));
+    const invalidate = vi.fn();
+    const auth = {
+      getToken: vi.fn().mockResolvedValueOnce('expired-token').mockResolvedValueOnce('new-token'),
+      invalidate,
+    } as unknown as UrbaneBoltAuthProvider;
+    const client = new UrbaneBoltClient({ request } as unknown as AxiosInstance, auth, {
+      retries: 0,
+      baseDelayMs: 1,
+    });
+
+    await expect(client.request({ method: 'GET', path: '/tracking' })).rejects.toMatchObject({
+      kind: 'AUTHENTICATION_FAILED',
+    });
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(invalidate).toHaveBeenCalledOnce();
+  });
 });
 
 function axiosFailure(status?: number, data?: unknown, code?: string): AxiosError {
