@@ -2,7 +2,7 @@
 
 A courier-agnostic shipment service built for the EaseCommerce backend assignment. The service exposes one normalized API while courier-specific payloads and behavior stay behind adapters.
 
-The repository is being built in small, verified checkpoints. The current baseline contains the Express/TypeScript foundation, PostgreSQL persistence, a pluggable courier registry, MockCourier, and the UrbaneBolt authentication/create/track/cancel adapter. Unified shipment routes are the next checkpoint.
+The repository is being built in small, verified checkpoints. The current baseline contains the Express/TypeScript foundation, PostgreSQL persistence, a pluggable courier registry, MockCourier, the UrbaneBolt adapter, and unified create/read/track/cancel order workflows.
 
 ## Local setup
 
@@ -45,6 +45,10 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5433/courier_platform?sche
 ```http
 GET /health/live
 GET /health/ready
+POST /api/v1/orders
+GET /api/v1/orders/:orderId
+GET /api/v1/orders/:orderId/track
+POST /api/v1/orders/:orderId/cancel
 ```
 
-The detailed setup, API documentation, and architecture notes will be expanded as the shipment workflows are implemented.
+Create requests are idempotent by `order_id`: an identical replay returns the existing shipment, while a changed payload returns `409 ORDER_ID_CONFLICT`. Courier request/response payloads and raw tracking events are retained for audit purposes but never exposed by the public API.

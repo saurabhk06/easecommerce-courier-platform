@@ -138,6 +138,13 @@ export class OrderRepository {
       },
     });
   }
+
+  async updateShipmentStatus(orderId: string, shipmentStatus: ShipmentStatus): Promise<Order> {
+    return this.database.order.update({
+      where: { orderId },
+      data: { shipmentStatus },
+    });
+  }
 }
 
 function isUniqueConstraintError(error: unknown): boolean {

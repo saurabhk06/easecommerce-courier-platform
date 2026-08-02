@@ -4,6 +4,10 @@ import { createApp } from './app.js';
 import { parseEnvironment } from './config/env.js';
 import { createLogger } from './config/logger.js';
 import { Database } from './infrastructure/database.js';
+import { createCourierRegistry } from './modules/couriers/create-courier-registry.js';
+import { OrderRepository } from './modules/orders/order.repository.js';
+import { OrderService } from './modules/orders/order.service.js';
+import { TrackingRepository } from './modules/orders/tracking.repository.js';
 
 const env = parseEnvironment(process.env);
 const logger = createLogger(env.LOG_LEVEL);
@@ -15,9 +19,16 @@ let isShuttingDown = false;
 async function start(): Promise<void> {
   await database.connect();
 
+  const orderService = new OrderService({
+    orders: new OrderRepository(database.client),
+    tracking: new TrackingRepository(database.client),
+    couriers: createCourierRegistry(env),
+  });
+
   const app = createApp({
     logger,
     readinessChecks: [() => database.checkHealth()],
+    orderService,
   });
 
   server = app.listen(env.PORT, () => {

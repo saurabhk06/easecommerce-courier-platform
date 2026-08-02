@@ -6,13 +6,20 @@ import { errorHandler } from './middleware/error-handler.js';
 import { notFound } from './middleware/not-found.js';
 import { requestContext } from './middleware/request-context.js';
 import { createHealthRouter, type ReadinessCheck } from './modules/health/health.routes.js';
+import { createOrderRouter } from './modules/orders/order.routes.js';
+import type { OrderService } from './modules/orders/order.service.js';
 
 type AppDependencies = {
   logger: Logger;
   readinessChecks?: ReadinessCheck[];
+  orderService?: OrderService;
 };
 
-export function createApp({ logger, readinessChecks = [] }: AppDependencies): Express {
+export function createApp({
+  logger,
+  readinessChecks = [],
+  orderService,
+}: AppDependencies): Express {
   const app = express();
 
   app.disable('x-powered-by');
@@ -28,6 +35,7 @@ export function createApp({ logger, readinessChecks = [] }: AppDependencies): Ex
   app.use(express.json({ limit: '1mb' }));
 
   app.use('/health', createHealthRouter(readinessChecks));
+  if (orderService) app.use('/api/v1/orders', createOrderRouter(orderService));
 
   app.use(notFound);
   app.use(errorHandler);
