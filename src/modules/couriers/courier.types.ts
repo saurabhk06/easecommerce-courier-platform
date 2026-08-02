@@ -1,5 +1,7 @@
 import type { ShipmentStatus, ServiceLevel } from '../../shared/domain/shipment.js';
 
+export type CourierPayload = Record<string, unknown> | Array<Record<string, unknown>>;
+
 export type ContactAddress = {
   name: string;
   phone: string;
@@ -51,8 +53,8 @@ export type CreateShipmentResult = {
   awbNumber: string;
   status: ShipmentStatus;
   courierStatus: string;
-  requestPayload: Record<string, unknown>;
-  responsePayload: Record<string, unknown>;
+  requestPayload: CourierPayload;
+  responsePayload: CourierPayload;
 };
 
 export type TrackingEvent = {
@@ -62,20 +64,20 @@ export type TrackingEvent = {
   description?: string;
   location?: string;
   occurredAt: Date;
-  rawPayload: Record<string, unknown>;
+  rawPayload: CourierPayload;
 };
 
 export type TrackingResult = {
   status: ShipmentStatus;
   courierStatus: string;
   events: TrackingEvent[];
-  rawPayload: Record<string, unknown>;
+  rawPayload: CourierPayload;
 };
 
 export type CancelShipmentResult = {
   status: 'CANCELLED';
   courierStatus: string;
   cancelledAt: Date;
-  requestPayload: Record<string, unknown>;
-  responsePayload: Record<string, unknown>;
+  requestPayload: CourierPayload;
+  responsePayload: CourierPayload;
 };

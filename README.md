@@ -2,7 +2,7 @@
 
 A courier-agnostic shipment service built for the EaseCommerce backend assignment. The service exposes one normalized API while courier-specific payloads and behavior stay behind adapters.
 
-The repository is being built in small, verified checkpoints. The current baseline contains the Express/TypeScript foundation, configuration validation, structured logging, normalized errors, health checks, tests, and local PostgreSQL/Redis services. Shipment workflows will be added in the next checkpoints.
+The repository is being built in small, verified checkpoints. The current baseline contains the Express/TypeScript foundation, PostgreSQL persistence, a pluggable courier registry, MockCourier, and the UrbaneBolt authentication/create/track/cancel adapter. Unified shipment routes are the next checkpoint.
 
 ## Local setup
 
