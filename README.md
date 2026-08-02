@@ -16,6 +16,7 @@ Requirements:
 cp .env.example .env
 pnpm install
 docker compose up -d
+pnpm prisma:deploy
 pnpm dev
 ```
 
@@ -28,6 +29,15 @@ pnpm format:check
 pnpm lint
 pnpm build
 pnpm test
+pnpm test:integration
+```
+
+Integration tests use PostgreSQL and require `DATABASE_URL` to point to a local database. If port `5432` is already occupied, start this project's container on another host port and update the URL accordingly:
+
+```bash
+POSTGRES_PORT=5433 docker compose up -d postgres
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/courier_platform?schema=public pnpm prisma:deploy
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/courier_platform?schema=public pnpm test:integration
 ```
 
 ## Current endpoints

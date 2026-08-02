@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ServiceLevel {
+  SAME_DAY
+  NEXT_DAY
+}
+
+enum ShipmentStatus {
+  PENDING
+  CREATED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  RTO_INITIATED
+  RETURNED
+  FAILED
+  UNKNOWN
+}
+
+enum ProcessingStatus {
+  QUEUED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  RECONCILIATION_REQUIRED
+}
+
+enum BatchStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  PARTIALLY_COMPLETED
+  FAILED
+}
+
+model Order {
+  id                    String           @id @default(uuid()) @db.Uuid
+  orderId               String           @unique @map("order_id") @db.VarChar(64)
+  requestFingerprint    String           @map("request_fingerprint") @db.Char(64)
+  courierPartner        String           @map("courier_partner") @db.VarChar(32)
+  serviceLevel          ServiceLevel     @map("service_level")
+  courierShipmentId     String?          @map("courier_shipment_id") @db.VarChar(128)
+  awbNumber             String?          @map("awb_number") @db.VarChar(128)
+  shipmentStatus        ShipmentStatus   @default(PENDING) @map("shipment_status")
+  processingStatus      ProcessingStatus @default(QUEUED) @map("processing_status")
+  normalizedRequest     Json             @map("normalized_request")
+  courierRequest        Json?            @map("courier_request")
+  courierResponse       Json?            @map("courier_response")
+  failureCode           String?          @map("failure_code") @db.VarChar(64)
+  failureDetails        Json?            @map("failure_details")
+  processingStartedAt   DateTime?        @map("processing_started_at") @db.Timestamptz(3)
+  batchId               String?          @map("batch_id") @db.Uuid
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  batch                 Batch?           @relation(fields: [batchId], references: [id])
+  trackingEvents        TrackingEvent[]
+
+  @@index([batchId])
+  @@index([courierPartner, shipmentStatus])
+  @@index([processingStatus, createdAt])
+  @@map("orders")
+}
+
+model TrackingEvent {
+  id                String         @id @default(uuid()) @db.Uuid
+  orderId           String         @map("order_id") @db.Uuid
+  courierEventId    String?        @map("courier_event_id") @db.VarChar(128)
+  deduplicationKey  String         @map("deduplication_key") @db.Char(64)
+  status            ShipmentStatus
+  courierStatus     String         @map("courier_status") @db.VarChar(128)
+  description       String?        @db.VarChar(500)
+  location          String?        @db.VarChar(200)
+  occurredAt        DateTime       @map("occurred_at") @db.Timestamptz(3)
+  recordedAt        DateTime       @default(now()) @map("recorded_at") @db.Timestamptz(3)
+  rawPayload        Json           @map("raw_payload")
+  order             Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, deduplicationKey])
+  @@index([orderId, occurredAt])
+  @@map("tracking_history")
+}
+
+model Batch {
+  id            String      @id @default(uuid()) @db.Uuid
+  status        BatchStatus @default(QUEUED)
+  totalCount    Int         @map("total_count")
+  successCount  Int         @default(0) @map("success_count")
+  failureCount  Int         @default(0) @map("failure_count")
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  orders        Order[]
+
+  @@index([status, createdAt])
+  @@map("batches")
+}
