@@ -1,0 +1,22 @@
+# Dependencies and build output
+node_modules/
+.pnpm-store/
+dist/
+coverage/
+
+# Local configuration and runtime files
+.env
+.env.*
+!.env.example
+*.log
+
+# Tooling and operating system files
+.DS_Store
+.idea/
+.vscode/
+
+# Temporary project files
+tmp/
+
+# Local planning and reference material
+docs/
