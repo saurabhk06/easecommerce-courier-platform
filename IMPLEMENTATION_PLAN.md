@@ -1,4 +1,6 @@
-# EaseCommerce Multi-Courier Platform - Implementation Plan
+# EaseCommerce Multi-Courier Platform - Architecture Plan
+
+> Status: the required implementation is complete. This file preserves the decisions agreed before development; [README.md](README.md), [DESIGN.md](DESIGN.md), and [openapi.yaml](openapi.yaml) describe the finished system.
 
 ## 1. Purpose
 
@@ -9,7 +11,7 @@ This document records the architecture and implementation decisions agreed befor
 - Production-minded without unnecessary infrastructure or abstractions.
 - Realistic to complete before the submission deadline.
 
-No implementation has started. This document is the agreement to review before writing code.
+This document began as the agreement reviewed before implementation and is retained as a record of scope and design decisions.
 
 ## 2. Assignment Summary
 
@@ -33,7 +35,7 @@ Every order, courier request, courier response, failure, and tracking update mus
 
 ## 3. Agreed Technology Stack
 
-- Node.js 20 or newer.
+- Node.js 22.13 or newer.
 - Express.js with TypeScript.
 - PostgreSQL.
 - Prisma ORM.

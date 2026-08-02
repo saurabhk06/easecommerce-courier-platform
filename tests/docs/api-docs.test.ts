@@ -34,7 +34,9 @@ describe('API documentation', () => {
 
     expect(response.status).toBe(200);
     expect(response.text).toContain('<title>EaseCommerce Courier API</title>');
-    expect(response.headers['content-security-policy']).toContain("script-src 'self' 'unsafe-inline'");
+    expect(response.headers['content-security-policy']).toContain(
+      "script-src 'self' 'unsafe-inline'",
+    );
   });
 
   it('contains only resolvable local references and unique operation IDs', async () => {
