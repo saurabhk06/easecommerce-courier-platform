@@ -4,7 +4,9 @@ import {
   type Order,
   type PrismaClient,
   ProcessingStatus,
+  Prisma,
 } from '@prisma/client';
+import type { CreateOrderRecord } from '../orders/order.repository.js';
 
 export type BatchWithOrders = Batch & { orders: Order[] };
 
@@ -15,10 +17,39 @@ export class BatchRepository {
     return this.database.batch.create({ data: { totalCount } });
   }
 
+  async createWithOrders(orders: CreateOrderRecord[]): Promise<Batch> {
+    return this.database.$transaction(async (transaction) => {
+      const batch = await transaction.batch.create({ data: { totalCount: orders.length } });
+      await transaction.order.createMany({
+        data: orders.map((order) => ({ ...order, batchId: batch.id })),
+      });
+      return batch;
+    });
+  }
+
+  async markQueueFailure(id: string): Promise<Batch> {
+    return this.database.$transaction(async (transaction) => {
+      const batch = await transaction.batch.findUniqueOrThrow({ where: { id } });
+      await transaction.order.updateMany({
+        where: { batchId: id, processingStatus: ProcessingStatus.QUEUED },
+        data: {
+          processingStatus: ProcessingStatus.FAILED,
+          failureCode: 'QUEUE_UNAVAILABLE',
+          failureDetails: { message: 'Shipment job could not be enqueued' },
+        },
+      });
+
+      return transaction.batch.update({
+        where: { id },
+        data: { status: BatchStatus.FAILED, successCount: 0, failureCount: batch.totalCount },
+      });
+    });
+  }
+
   async findById(id: string): Promise<BatchWithOrders | null> {
     return this.database.batch.findUnique({
       where: { id },
-      include: { orders: { orderBy: { createdAt: 'asc' } } },
+      include: { orders: { orderBy: [{ createdAt: 'asc' }, { orderId: 'asc' }] } },
     });
   }
 
@@ -60,6 +91,10 @@ export class BatchRepository {
       });
     });
   }
+}
+
+export function isOrderConflict(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
 
 function resolveBatchStatus(counts: {

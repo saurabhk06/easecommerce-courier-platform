@@ -85,12 +85,32 @@ export const createOrderSchema = z
 
 export const orderIdSchema = identifier;
 
+export const bulkOrderSchema = z
+  .object({ orders: z.array(createOrderSchema).min(1).max(100) })
+  .superRefine(({ orders }, context) => {
+    const firstIndexByOrderId = new Map<string, number>();
+    orders.forEach((order, index) => {
+      const firstIndex = firstIndexByOrderId.get(order.order_id);
+      if (firstIndex === undefined) {
+        firstIndexByOrderId.set(order.order_id, index);
+        return;
+      }
+
+      addIssue(
+        context,
+        ['orders', index, 'order_id'],
+        `Duplicate order_id; first used at orders.${firstIndex}.order_id`,
+      );
+    });
+  });
+
 export type CreateOrderRequest = z.infer<typeof createOrderSchema>;
+export type BulkOrderRequest = z.infer<typeof bulkOrderSchema>;
 
 function hasAtMostTwoDecimalPlaces(value: number): boolean {
   return Math.abs(value * 100 - Math.round(value * 100)) < Number.EPSILON * 100;
 }
 
-function addIssue(context: z.RefinementCtx, path: PropertyKey[], message: string): void {
+function addIssue(context: z.RefinementCtx, path: (string | number)[], message: string): void {
   context.addIssue({ code: 'custom', path, message });
 }

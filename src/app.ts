@@ -6,6 +6,8 @@ import { errorHandler } from './middleware/error-handler.js';
 import { notFound } from './middleware/not-found.js';
 import { requestContext } from './middleware/request-context.js';
 import { createHealthRouter, type ReadinessCheck } from './modules/health/health.routes.js';
+import { createBatchRouter } from './modules/batches/batch.routes.js';
+import type { BatchService } from './modules/batches/batch.service.js';
 import { createOrderRouter } from './modules/orders/order.routes.js';
 import type { OrderService } from './modules/orders/order.service.js';
 
@@ -13,12 +15,14 @@ type AppDependencies = {
   logger: Logger;
   readinessChecks?: ReadinessCheck[];
   orderService?: OrderService;
+  batchService?: BatchService;
 };
 
 export function createApp({
   logger,
   readinessChecks = [],
   orderService,
+  batchService,
 }: AppDependencies): Express {
   const app = express();
 
@@ -35,7 +39,8 @@ export function createApp({
   app.use(express.json({ limit: '1mb' }));
 
   app.use('/health', createHealthRouter(readinessChecks));
-  if (orderService) app.use('/api/v1/orders', createOrderRouter(orderService));
+  if (orderService) app.use('/api/v1/orders', createOrderRouter(orderService, batchService));
+  if (batchService) app.use('/api/v1/batches', createBatchRouter(batchService));
 
   app.use(notFound);
   app.use(errorHandler);

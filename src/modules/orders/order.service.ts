@@ -5,6 +5,7 @@ import type { CourierRegistry } from '../couriers/courier-registry.js';
 import { CourierError } from '../couriers/courier-error.js';
 import type { TrackingEvent as CourierTrackingEvent } from '../couriers/courier.types.js';
 import type { OrderRepository } from './order.repository.js';
+import type { CreateOrderRecord } from './order.repository.js';
 import type { TrackingRepository } from './tracking.repository.js';
 import { toCreateShipmentInput } from './order.mapper.js';
 import type { CreateOrderRequest } from './order.schema.js';
@@ -37,17 +38,11 @@ export class OrderService {
   }
 
   async createOrder(request: CreateOrderRequest, batchId?: string): Promise<CreateOrderOutcome> {
+    const prepared = this.prepareOrder(request, batchId);
     const normalizedInput = toCreateShipmentInput(request);
     const adapter = this.dependencies.couriers.get(request.courier_partner);
-    const requestFingerprint = stableHash(normalizedInput);
-    const existingOrNew = await this.dependencies.orders.createOrGet({
-      orderId: request.order_id,
-      requestFingerprint,
-      courierPartner: request.courier_partner,
-      serviceLevel: request.service_level,
-      normalizedRequest: toJsonValue(normalizedInput),
-      ...(batchId ? { batchId } : {}),
-    });
+    const requestFingerprint = prepared.requestFingerprint;
+    const existingOrNew = await this.dependencies.orders.createOrGet(prepared);
 
     if (!existingOrNew.created) {
       if (existingOrNew.order.requestFingerprint !== requestFingerprint) {
@@ -116,6 +111,20 @@ export class OrderService {
       await this.persistCourierFailure(request.order_id, error);
       throw publicErrorForCourierFailure(error);
     }
+  }
+
+  prepareOrder(request: CreateOrderRequest, batchId?: string): CreateOrderRecord {
+    this.dependencies.couriers.get(request.courier_partner);
+    const normalizedInput = toCreateShipmentInput(request);
+
+    return {
+      orderId: request.order_id,
+      requestFingerprint: stableHash(normalizedInput),
+      courierPartner: request.courier_partner,
+      serviceLevel: request.service_level,
+      normalizedRequest: toJsonValue(normalizedInput),
+      ...(batchId ? { batchId } : {}),
+    };
   }
 
   async getOrder(orderId: string): Promise<Order> {

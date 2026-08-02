@@ -45,7 +45,7 @@ Integration tests use PostgreSQL and require `DATABASE_URL` to point to a local 
 ```bash
 POSTGRES_PORT=5433 docker compose up -d postgres
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/courier_platform?schema=public pnpm prisma:deploy
-DATABASE_URL=postgresql://postgres:postgres@localhost:5433/courier_platform?schema=public pnpm test:integration
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/courier_platform?schema=public REDIS_URL=redis://localhost:6379 pnpm test:integration
 ```
 
 ## Current endpoints
@@ -57,6 +57,10 @@ POST /api/v1/orders
 GET /api/v1/orders/:orderId
 GET /api/v1/orders/:orderId/track
 POST /api/v1/orders/:orderId/cancel
+POST /api/v1/orders/bulk
+GET /api/v1/batches/:batchId
 ```
 
 Create requests are idempotent by `order_id`: an identical replay returns the existing shipment, while a changed payload returns `409 ORDER_ID_CONFLICT`. Courier request/response payloads and raw tracking events are retained for audit purposes but never exposed by the public API.
+
+Bulk requests accept 1–100 orders and return `202 Accepted` after persisting the batch and enqueueing its jobs. The batch endpoint reports queued, successful, and failed orders individually, so one courier rejection does not hide successful shipments from the same batch.
