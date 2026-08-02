@@ -12,6 +12,7 @@ tags:
   - name: Health
   - name: Orders
   - name: Batches
+  - name: Serviceability
 paths:
   /health/live:
     get:
@@ -189,6 +190,41 @@ paths:
                 $ref: '#/components/schemas/BatchEnvelope'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/serviceability/pincodes:
+    get:
+      tags: [Serviceability]
+      summary: Check courier pincode availability
+      description: |
+        Checks up to 50 Indian pincodes through the selected courier capability.
+        Results preserve request order and use a normalized boolean response.
+      operationId: checkPincodeAvailability
+      parameters:
+        - name: courier_partner
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [mock, urbanebolt]
+        - name: pincodes
+          in: query
+          required: true
+          description: Comma-separated, unique six-digit Indian pincodes.
+          schema:
+            type: string
+          example: 122001,122017
+      responses:
+        '200':
+          description: Normalized availability for every requested pincode.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PincodeAvailabilityEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '502':
+          $ref: '#/components/responses/CourierAuthenticationFailed'
+        '503':
+          $ref: '#/components/responses/DependencyUnavailable'
 components:
   parameters:
     OrderId:
@@ -537,6 +573,32 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/Batch'
+    PincodeAvailability:
+      type: object
+      required: [pincode, available]
+      properties:
+        pincode:
+          type: string
+          pattern: '^\d{6}$'
+        available:
+          type: boolean
+    PincodeAvailabilityResponse:
+      type: object
+      required: [courier_partner, results]
+      properties:
+        courier_partner: { type: string }
+        results:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/PincodeAvailability'
+    PincodeAvailabilityEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/PincodeAvailabilityResponse'
     PublicOrderError:
       type: object
       required: [code, message]

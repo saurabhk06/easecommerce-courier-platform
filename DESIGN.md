@@ -29,6 +29,8 @@ A courier integration implements `CourierAdapter` and is registered at applicati
 
 This is deliberately an adapter/strategy design rather than a generic plugin framework. The boundary is explicit enough for the assignment and simple enough to debug.
 
+Optional features use narrower capability interfaces. Pincode availability implements `ServiceabilityAdapter`, so couriers can support shipment creation without being forced to implement every optional operation.
+
 ## Consistency and idempotency
 
 - `order_id` has a database unique constraint.
@@ -57,4 +59,5 @@ Normalized public presenters are separate from persistence models. Exact courier
 - `SAME_DAY` and `NEXT_DAY` service levels initially.
 - No distributed transaction between PostgreSQL and Redis.
 - No live UrbaneBolt test in CI because credentials and UAT availability are external.
-- Pincode availability and labels remain optional follow-up features.
+- The public UrbaneBolt documentation provides no saved pincode response example, so response-shape interpretation is isolated in a defensive mapper and covered with fixtures.
+- Shipping labels remain an optional follow-up feature.

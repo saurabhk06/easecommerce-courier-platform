@@ -3,6 +3,7 @@ declare global {
     interface Locals {
       requestId: string;
       validatedBody?: unknown;
+      validatedQuery?: unknown;
     }
   }
 }

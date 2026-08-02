@@ -74,6 +74,7 @@ GET /api/v1/orders/:orderId/track
 POST /api/v1/orders/:orderId/cancel
 POST /api/v1/orders/bulk
 GET /api/v1/batches/:batchId
+GET /api/v1/serviceability/pincodes
 ```
 
 Create requests are idempotent by `order_id`: an identical replay returns the existing shipment, while a changed payload returns `409 ORDER_ID_CONFLICT`. Courier request/response payloads and raw tracking events are retained for audit purposes but never exposed by the public API.
@@ -99,3 +100,4 @@ The image runs as the unprivileged `node` user. PostgreSQL and Redis must be rea
 - Raw courier payloads are persisted for audit but excluded from public presenters.
 - Tracking history is append-only and duplicate courier events are ignored.
 - API readiness requires both PostgreSQL and Redis; liveness only confirms the process is running.
+- Pincode availability is an optional courier capability, so adding it did not expand the required shipment adapter contract.

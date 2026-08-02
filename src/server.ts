@@ -12,6 +12,7 @@ import { BatchService } from './modules/batches/batch.service.js';
 import { OrderRepository } from './modules/orders/order.repository.js';
 import { OrderService } from './modules/orders/order.service.js';
 import { TrackingRepository } from './modules/orders/tracking.repository.js';
+import { ServiceabilityService } from './modules/serviceability/serviceability.service.js';
 
 const env = parseEnvironment(process.env);
 const logger = createLogger(env.LOG_LEVEL);
@@ -26,22 +27,25 @@ let isShuttingDown = false;
 async function start(): Promise<void> {
   await database.connect();
 
+  const courierRegistry = createCourierRegistry(env);
   const orderService = new OrderService({
     orders: new OrderRepository(database.client),
     tracking: new TrackingRepository(database.client),
-    couriers: createCourierRegistry(env),
+    couriers: courierRegistry,
   });
   const batchService = new BatchService({
     batches: new BatchRepository(database.client),
     orders: orderService,
     queue: shipmentQueue,
   });
+  const serviceabilityService = new ServiceabilityService(courierRegistry);
 
   const app = createApp({
     logger,
     readinessChecks: [() => database.checkHealth(), () => checkRedisHealth(redis)],
     orderService,
     batchService,
+    serviceabilityService,
   });
 
   server = app.listen(env.PORT, () => {

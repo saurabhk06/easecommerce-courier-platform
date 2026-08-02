@@ -11,12 +11,15 @@ import type { BatchService } from './modules/batches/batch.service.js';
 import { createApiDocsRouter } from './modules/docs/api-docs.routes.js';
 import { createOrderRouter } from './modules/orders/order.routes.js';
 import type { OrderService } from './modules/orders/order.service.js';
+import { createServiceabilityRouter } from './modules/serviceability/serviceability.routes.js';
+import type { ServiceabilityService } from './modules/serviceability/serviceability.service.js';
 
 type AppDependencies = {
   logger: Logger;
   readinessChecks?: ReadinessCheck[];
   orderService?: OrderService;
   batchService?: BatchService;
+  serviceabilityService?: ServiceabilityService;
 };
 
 export function createApp({
@@ -24,6 +27,7 @@ export function createApp({
   readinessChecks = [],
   orderService,
   batchService,
+  serviceabilityService,
 }: AppDependencies): Express {
   const app = express();
 
@@ -43,6 +47,9 @@ export function createApp({
   app.use('/api-docs', createApiDocsRouter());
   if (orderService) app.use('/api/v1/orders', createOrderRouter(orderService, batchService));
   if (batchService) app.use('/api/v1/batches', createBatchRouter(batchService));
+  if (serviceabilityService) {
+    app.use('/api/v1/serviceability', createServiceabilityRouter(serviceabilityService));
+  }
 
   app.use(notFound);
   app.use(errorHandler);

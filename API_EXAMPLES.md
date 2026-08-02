@@ -138,3 +138,13 @@ curl 'http://localhost:3000/api/v1/batches/REPLACE_WITH_BATCH_ID'
 ```
 
 Poll until the status becomes `COMPLETED`, `PARTIALLY_COMPLETED`, or `FAILED`.
+
+## Check pincode availability
+
+Up to 50 unique pincodes can be checked in one request. MockCourier makes this example deterministic:
+
+```bash
+curl 'http://localhost:3000/api/v1/serviceability/pincodes?courier_partner=mock&pincodes=122001,122017,560001'
+```
+
+The response contains one `{ pincode, available }` result for every requested value. Use `courier_partner=urbanebolt` to call the authenticated UrbaneBolt pincode endpoint.

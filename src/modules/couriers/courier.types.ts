@@ -81,3 +81,13 @@ export type CancelShipmentResult = {
   requestPayload: CourierPayload;
   responsePayload: CourierPayload;
 };
+
+export type PincodeAvailability = {
+  pincode: string;
+  available: boolean;
+};
+
+export type PincodeAvailabilityResult = {
+  results: PincodeAvailability[];
+  rawPayload: CourierPayload;
+};

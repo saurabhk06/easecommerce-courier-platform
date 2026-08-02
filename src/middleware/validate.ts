@@ -7,3 +7,10 @@ export function validateBody(schema: ZodType): RequestHandler {
     next();
   };
 }
+
+export function validateQuery(schema: ZodType): RequestHandler {
+  return (req, res, next) => {
+    res.locals.validatedQuery = schema.parse(req.query);
+    next();
+  };
+}

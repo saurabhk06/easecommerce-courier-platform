@@ -3,6 +3,7 @@ import { stableHash } from '../../shared/stable-hash.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import type { CourierRegistry } from '../couriers/courier-registry.js';
 import { CourierError } from '../couriers/courier-error.js';
+import { courierFailureCode, toPublicCourierError } from '../couriers/courier-public-error.js';
 import type { TrackingEvent as CourierTrackingEvent } from '../couriers/courier.types.js';
 import type { OrderRepository } from './order.repository.js';
 import type { CreateOrderRecord } from './order.repository.js';
@@ -109,7 +110,7 @@ export class OrderService {
     } catch (error) {
       if (!(error instanceof CourierError)) throw error;
       await this.persistCourierFailure(request.order_id, error);
-      throw publicErrorForCourierFailure(error);
+      throw toPublicCourierError(error);
     }
   }
 
@@ -155,7 +156,7 @@ export class OrderService {
         events: await this.dependencies.tracking.findByOrderId(order.id),
       };
     } catch (error) {
-      if (error instanceof CourierError) throw publicErrorForCourierFailure(error);
+      if (error instanceof CourierError) throw toPublicCourierError(error);
       throw error;
     }
   }
@@ -192,7 +193,7 @@ export class OrderService {
       });
       return cancelled;
     } catch (error) {
-      if (error instanceof CourierError) throw publicErrorForCourierFailure(error);
+      if (error instanceof CourierError) throw toPublicCourierError(error);
       throw error;
     }
   }
@@ -228,7 +229,7 @@ export class OrderService {
 
   private async persistCourierFailure(orderId: string, error: CourierError): Promise<void> {
     await this.dependencies.orders.markProcessingFailure(orderId, {
-      code: publicCodeForCourierFailure(error),
+      code: courierFailureCode(error),
       details: toJsonValue(error.rawDetails ?? { kind: error.kind }),
       reconciliationRequired: error.kind === 'UNKNOWN_OUTCOME',
     });
@@ -253,36 +254,6 @@ function shipmentReference(order: Order): {
     courierShipmentId: order.courierShipmentId,
     awbNumber: order.awbNumber,
   };
-}
-
-function publicErrorForCourierFailure(error: CourierError): AppError {
-  const code = publicCodeForCourierFailure(error);
-  const statusByKind = {
-    REQUEST_REJECTED: 422,
-    AUTHENTICATION_FAILED: 502,
-    UNAVAILABLE: 503,
-    UNKNOWN_OUTCOME: 503,
-  } as const;
-  const messageByKind = {
-    REQUEST_REJECTED: 'The courier rejected the shipment request',
-    AUTHENTICATION_FAILED: 'Courier authentication failed',
-    UNAVAILABLE: 'The courier is temporarily unavailable',
-    UNKNOWN_OUTCOME: 'Shipment outcome is uncertain and requires reconciliation',
-  } as const;
-
-  return new AppError(code, messageByKind[error.kind], statusByKind[error.kind], undefined, {
-    cause: error,
-  });
-}
-
-function publicCodeForCourierFailure(error: CourierError): string {
-  const codeByKind = {
-    REQUEST_REJECTED: 'COURIER_REQUEST_REJECTED',
-    AUTHENTICATION_FAILED: 'COURIER_AUTHENTICATION_FAILED',
-    UNAVAILABLE: 'COURIER_UNAVAILABLE',
-    UNKNOWN_OUTCOME: 'SHIPMENT_STATE_UNKNOWN',
-  } as const;
-  return codeByKind[error.kind];
 }
 
 function toJsonValue(value: unknown): Prisma.InputJsonValue {

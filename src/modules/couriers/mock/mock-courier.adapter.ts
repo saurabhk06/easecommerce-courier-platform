@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { CourierAdapter } from '../courier-adapter.js';
+import type { ServiceabilityAdapter } from '../serviceability-adapter.js';
 import { CourierError } from '../courier-error.js';
 import type {
   CancelShipmentResult,
@@ -7,25 +7,31 @@ import type {
   CreateShipmentResult,
   ShipmentReference,
   TrackingResult,
+  PincodeAvailabilityResult,
 } from '../courier.types.js';
 
 type MockCourierOptions = {
   clock?: () => Date;
   latencyMs?: number;
   shouldReject?: (orderId: string) => boolean;
+  serviceablePincodes?: string[];
 };
 
-export class MockCourierAdapter implements CourierAdapter {
+export class MockCourierAdapter implements ServiceabilityAdapter {
   readonly name = 'mock';
 
   private readonly clock: () => Date;
   private readonly latencyMs: number;
   private readonly shouldReject: (orderId: string) => boolean;
+  private readonly serviceablePincodes: Set<string>;
 
   constructor(options: MockCourierOptions = {}) {
     this.clock = options.clock ?? (() => new Date());
     this.latencyMs = options.latencyMs ?? 0;
     this.shouldReject = options.shouldReject ?? (() => false);
+    this.serviceablePincodes = new Set(
+      options.serviceablePincodes ?? ['122001', '122017', '560001'],
+    );
   }
 
   async createShipment(input: CreateShipmentInput): Promise<CreateShipmentResult> {
@@ -109,6 +115,16 @@ export class MockCourierAdapter implements CourierAdapter {
       requestPayload,
       responsePayload,
     };
+  }
+
+  async checkPincodeAvailability(pincodes: string[]): Promise<PincodeAvailabilityResult> {
+    await this.waitForConfiguredLatency();
+    const results = pincodes.map((pincode) => ({
+      pincode,
+      available: this.serviceablePincodes.has(pincode),
+    }));
+
+    return { results, rawPayload: { results } };
   }
 
   private async waitForConfiguredLatency(): Promise<void> {

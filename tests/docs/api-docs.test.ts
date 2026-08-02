@@ -23,6 +23,7 @@ describe('API documentation', () => {
         '/api/v1/orders/{orderId}',
         '/api/v1/orders/{orderId}/cancel',
         '/api/v1/orders/{orderId}/track',
+        '/api/v1/serviceability/pincodes',
         '/health/live',
         '/health/ready',
       ].sort(),

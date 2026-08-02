@@ -22,7 +22,8 @@ describe('UrbaneBoltAdapter', () => {
           ],
         },
       })
-      .mockResolvedValueOnce({ success: true, status: 'CANCELLED' });
+      .mockResolvedValueOnce({ success: true, status: 'CANCELLED' })
+      .mockResolvedValueOnce({ data: [{ pincode: 122001, serviceable: true }] });
     const adapter = new UrbaneBoltAdapter({ request } as UrbaneBoltApiClient, {
       customerCode: 'UEB-TEST',
       clock: () => fixedTime,
@@ -36,10 +37,15 @@ describe('UrbaneBoltAdapter', () => {
     };
     const tracking = await adapter.trackShipment(reference);
     const cancellation = await adapter.cancelShipment(reference);
+    const availability = await adapter.checkPincodeAvailability(['122001', '560001']);
 
     expect(created).toMatchObject({ awbNumber: '200000001170', status: 'CREATED' });
     expect(tracking.status).toBe('IN_TRANSIT');
     expect(cancellation).toMatchObject({ status: 'CANCELLED', cancelledAt: fixedTime });
+    expect(availability.results).toEqual([
+      { pincode: '122001', available: true },
+      { pincode: '560001', available: false },
+    ]);
 
     expect(request).toHaveBeenNthCalledWith(
       1,
@@ -58,6 +64,11 @@ describe('UrbaneBoltAdapter', () => {
       method: 'POST',
       path: '/api/v1/services/cancel/',
       data: { awbs: '200000001170' },
+    });
+    expect(request).toHaveBeenNthCalledWith(4, {
+      method: 'GET',
+      path: '/api/v1/location/pincodes/',
+      params: { pincodes: '122001,560001' },
     });
   });
 });

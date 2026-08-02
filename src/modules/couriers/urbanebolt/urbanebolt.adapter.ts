@@ -1,4 +1,4 @@
-import type { CourierAdapter } from '../courier-adapter.js';
+import type { ServiceabilityAdapter } from '../serviceability-adapter.js';
 import type {
   CancelShipmentResult,
   CreateShipmentInput,
@@ -6,6 +6,7 @@ import type {
   CourierPayload,
   ShipmentReference,
   TrackingResult,
+  PincodeAvailabilityResult,
 } from '../courier.types.js';
 import type { UrbaneBoltApiClient } from './urbanebolt.client.js';
 import {
@@ -14,13 +15,14 @@ import {
   fromUrbaneBoltTrackingResponse,
   toUrbaneBoltManifest,
 } from './urbanebolt.mapper.js';
+import { fromUrbaneBoltPincodeResponse } from './urbanebolt.serviceability.mapper.js';
 
 type UrbaneBoltAdapterOptions = {
   customerCode: string;
   clock?: () => Date;
 };
 
-export class UrbaneBoltAdapter implements CourierAdapter {
+export class UrbaneBoltAdapter implements ServiceabilityAdapter {
   readonly name = 'urbanebolt';
 
   private readonly clock: () => Date;
@@ -62,5 +64,15 @@ export class UrbaneBoltAdapter implements CourierAdapter {
     });
 
     return fromUrbaneBoltCancellationResponse(reference, response, this.clock());
+  }
+
+  async checkPincodeAvailability(pincodes: string[]): Promise<PincodeAvailabilityResult> {
+    const response = await this.client.request<CourierPayload>({
+      method: 'GET',
+      path: '/api/v1/location/pincodes/',
+      params: { pincodes: pincodes.join(',') },
+    });
+
+    return fromUrbaneBoltPincodeResponse(response, pincodes);
   }
 }
