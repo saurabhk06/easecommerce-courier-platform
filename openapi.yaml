@@ -60,8 +60,10 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateOrderRequest'
             examples:
-              mockNextDay:
-                $ref: '#/components/examples/CreateOrder'
+              mockCourier:
+                $ref: '#/components/examples/CreateMockOrder'
+              urbaneBoltUat:
+                $ref: '#/components/examples/CreateUrbaneBoltOrder'
       responses:
         '201':
           description: Shipment created.
@@ -631,7 +633,8 @@ components:
         error:
           $ref: '#/components/schemas/Error'
   examples:
-    CreateOrder:
+    CreateMockOrder:
+      summary: MockCourier - ready to run
       value:
         order_id: EC-API-001
         courier_partner: mock
@@ -669,5 +672,46 @@ components:
           declared_value: 1499
         invoice:
           number: INV-001
+          date: '2025-08-03'
+          value: 1499
+    CreateUrbaneBoltOrder:
+      summary: UrbaneBolt UAT
+      value:
+        order_id: EC-URBANEBOLT-001
+        courier_partner: urbanebolt
+        service_level: NEXT_DAY
+        consignee:
+          name: Aarav Sharma
+          phone: '+919876543210'
+          email: aarav@example.com
+          address_line_1: 12 MG Road
+          address_type: HOME
+          city: Bengaluru
+          state: Karnataka
+          country: IN
+          postal_code: '560001'
+        shipper:
+          name: EaseCommerce Warehouse
+          phone: '+919811111111'
+          address_line_1: Plot 18, Sector 17
+          address_type: BUSINESS
+          city: Gurugram
+          state: Haryana
+          country: IN
+          postal_code: '122001'
+        package:
+          weight_kg: 1.25
+          length_cm: 20
+          width_cm: 15
+          height_cm: 10
+          pieces: 1
+          item_description: Cotton shirts
+          item_quantity: 2
+        payment:
+          mode: COD
+          collectable_amount: 1499
+          declared_value: 1499
+        invoice:
+          number: INV-URBANEBOLT-001
           date: '2025-08-03'
           value: 1499
