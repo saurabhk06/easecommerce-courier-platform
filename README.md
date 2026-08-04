@@ -53,7 +53,7 @@ git checkout develop
 cp .env.example .env
 ```
 
-UrbaneBolt is the default courier. Add the supplied UAT credentials before creating shipments. MockCourier remains available by explicitly sending `courier_partner: mock`.
+UrbaneBolt is the default courier. The assignment's shared public UAT credentials are already present in `.env.example`, so copying it is enough to test the integration. MockCourier remains available by explicitly sending `courier_partner: mock`.
 
 ### 3. Start PostgreSQL and Redis
 
@@ -136,11 +136,11 @@ Swagger uses an `UrbaneBolt UAT` example by default. It already contains `courie
 | `COURIER_RETRY_BASE_DELAY_MS` | No             | `250`                                                                          | Base delay for exponential retry backoff                        |
 | `DEFAULT_COURIER_PARTNER`     | No             | `urbanebolt`                                                                   | Courier used when an order or serviceability request omits it   |
 | `URBANEBOLT_BASE_URL`         | Yes            | `https://uat.urbanebolt.in`                                                    | UrbaneBolt UAT base URL                                         |
-| `URBANEBOLT_USERNAME`         | For UrbaneBolt | `replace-me`                                                                   | UAT API username                                                |
-| `URBANEBOLT_PASSWORD`         | For UrbaneBolt | `replace-me`                                                                   | UAT API password                                                |
-| `URBANEBOLT_CUSTOMER_CODE`    | For UrbaneBolt | `replace-me`                                                                   | Courier account code sent by the UrbaneBolt adapter             |
+| `URBANEBOLT_USERNAME`         | For UrbaneBolt | Assignment UAT account                                                         | UAT API username                                                |
+| `URBANEBOLT_PASSWORD`         | For UrbaneBolt | Assignment UAT account                                                         | UAT API password                                                |
+| `URBANEBOLT_CUSTOMER_CODE`    | For UrbaneBolt | `UEBCUS0008`                                                                   | Courier account code sent by the UrbaneBolt adapter             |
 
-Never commit a populated `.env`. It is ignored by Git.
+The committed `.env.example` contains only the shared UAT account published with the assignment. Never commit a populated `.env` containing private or production credentials; `.env` is ignored by Git.
 
 ## API overview
 
