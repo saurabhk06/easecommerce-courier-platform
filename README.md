@@ -16,7 +16,6 @@ The first real integration is UrbaneBolt. MockCourier is included so the complet
 - OpenAPI 3.1 and interactive Swagger UI
 - Unit, database, Redis, and worker integration tests
 - Multi-stage, non-root production Docker image
-- GitHub Actions CI
 
 Architecture decisions and tradeoffs are explained in [DESIGN.md](DESIGN.md).
 

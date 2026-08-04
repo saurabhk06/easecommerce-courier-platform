@@ -58,6 +58,6 @@ Normalized public presenters are separate from persistence models. Exact courier
 - Indian shipments only (`country = IN`, six-digit postal codes).
 - `SAME_DAY` and `NEXT_DAY` service levels initially.
 - No distributed transaction between PostgreSQL and Redis.
-- No live UrbaneBolt test in CI because credentials and UAT availability are external.
+- Automated tests use MockCourier because UrbaneBolt credentials and UAT availability are external.
 - The public UrbaneBolt documentation provides no saved pincode response example, so response-shape interpretation is isolated in a defensive mapper and covered with fixtures.
 - Shipping labels remain an optional follow-up feature.
