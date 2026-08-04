@@ -120,7 +120,14 @@ paths:
           $ref: '#/components/responses/DependencyUnavailable'
   /api/v1/orders/{orderId}:
     parameters:
-      - $ref: '#/components/parameters/OrderId'
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[A-Za-z0-9_-]+$'
+          maxLength: 64
+        example: EC-URBANEBOLT-002
     get:
       tags: [Orders]
       summary: Retrieve a saved order
@@ -134,9 +141,18 @@ paths:
                 $ref: '#/components/schemas/OrderEnvelope'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
   /api/v1/orders/{orderId}/track:
     parameters:
-      - $ref: '#/components/parameters/OrderId'
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[A-Za-z0-9_-]+$'
+          maxLength: 64
+        example: EC-URBANEBOLT-002
     get:
       tags: [Orders]
       summary: Refresh and retrieve tracking history
@@ -155,7 +171,14 @@ paths:
           $ref: '#/components/responses/DependencyUnavailable'
   /api/v1/orders/{orderId}/cancel:
     parameters:
-      - $ref: '#/components/parameters/OrderId'
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[A-Za-z0-9_-]+$'
+          maxLength: 64
+        example: EC-URBANEBOLT-002
     post:
       tags: [Orders]
       summary: Cancel a shipment
@@ -176,7 +199,12 @@ paths:
           $ref: '#/components/responses/DependencyUnavailable'
   /api/v1/batches/{batchId}:
     parameters:
-      - $ref: '#/components/parameters/BatchId'
+      - name: batchId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
     get:
       tags: [Batches]
       summary: Retrieve batch progress and per-order results
@@ -228,23 +256,6 @@ paths:
         '503':
           $ref: '#/components/responses/DependencyUnavailable'
 components:
-  parameters:
-    OrderId:
-      name: orderId
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: '^[A-Za-z0-9_-]+$'
-        maxLength: 64
-      example: EC-API-001
-    BatchId:
-      name: batchId
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
   responses:
     BadRequest:
       description: Validation failed or the courier identifier is unsupported.

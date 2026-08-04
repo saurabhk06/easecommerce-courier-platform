@@ -53,6 +53,20 @@ describe('API documentation', () => {
     }
     expect(new Set(operationIds).size).toBe(operationIds.length);
   });
+
+  it('defines Swagger-compatible path parameters', async () => {
+    const response = await request(app).get('/api-docs/openapi.json');
+    const document = response.body as unknown as {
+      paths: Record<string, { parameters?: Array<{ name?: string; in?: string }> }>;
+    };
+
+    expect(document.paths['/api/v1/orders/{orderId}']?.parameters).toContainEqual(
+      expect.objectContaining({ name: 'orderId', in: 'path' }),
+    );
+    expect(document.paths['/api/v1/batches/{batchId}']?.parameters).toContainEqual(
+      expect.objectContaining({ name: 'batchId', in: 'path' }),
+    );
+  });
 });
 
 function collectValues(value: unknown, targetKey: string): string[] {
