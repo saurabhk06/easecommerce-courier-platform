@@ -50,6 +50,19 @@ Open Swagger at [http://localhost:3000/api-docs/](http://localhost:3000/api-docs
 
 The worker is needed only for bulk shipment processing.
 
+## Test with Swagger
+
+Swagger is the easiest way to review and test the APIs:
+
+1. Keep the API running with `pnpm dev`.
+2. Keep `pnpm dev:worker` running when testing bulk orders.
+3. Open [http://localhost:3000/api-docs/](http://localhost:3000/api-docs/).
+4. Expand an endpoint, click **Try it out**, enter the required values, and click **Execute**.
+
+UrbaneBolt is the default courier. Creating a shipment calls its shared UAT API. Use a new `order_id` for every new shipment; reusing an ID intentionally demonstrates idempotency.
+
+For the recommended testing order, request examples, and expected responses, see the [Swagger API Testing Guide](SWAGGER_GUIDE.md).
+
 ## API overview
 
 | Method | Endpoint                          | Purpose                                  |
