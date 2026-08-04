@@ -1,0 +1,169 @@
+{
+  "info": {
+    "_postman_id": "3f184034-0d33-4e56-a88e-55c4fd5b8d33",
+    "name": "EaseCommerce Courier Platform",
+    "description": "Requests for every public API endpoint. Run Create Order before retrieve, track, or cancel. Run Create Bulk Batch before Get Batch.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Liveness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health/live",
+            "description": "Checks whether the API process is running."
+          }
+        },
+        {
+          "name": "Readiness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health/ready",
+            "description": "Checks PostgreSQL and Redis connectivity."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Create Order",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = Date.now();",
+                  "pm.collectionVariables.set('orderId', `EC-POSTMAN-${suffix}`);",
+                  "pm.collectionVariables.set('invoiceNumber', `INV-POSTMAN-${suffix}`);",
+                  "pm.collectionVariables.set('invoiceDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"courier_partner\": \"{{courierPartner}}\",\n  \"service_level\": \"NEXT_DAY\",\n  \"consignee\": {\n    \"name\": \"Aarav Sharma\",\n    \"phone\": \"+919876543210\",\n    \"email\": \"aarav@example.com\",\n    \"address_line_1\": \"12 MG Road\",\n    \"address_type\": \"HOME\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"country\": \"IN\",\n    \"postal_code\": \"560001\"\n  },\n  \"shipper\": {\n    \"name\": \"EaseCommerce Warehouse\",\n    \"phone\": \"+919811111111\",\n    \"address_line_1\": \"Plot 18, Sector 17\",\n    \"address_type\": \"BUSINESS\",\n    \"city\": \"Gurugram\",\n    \"state\": \"Haryana\",\n    \"country\": \"IN\",\n    \"postal_code\": \"122001\"\n  },\n  \"package\": {\n    \"weight_kg\": 1.25,\n    \"length_cm\": 20,\n    \"width_cm\": 15,\n    \"height_cm\": 10,\n    \"pieces\": 1,\n    \"item_description\": \"Cotton shirts\",\n    \"item_quantity\": 2\n  },\n  \"payment\": {\n    \"mode\": \"COD\",\n    \"collectable_amount\": 1499,\n    \"declared_value\": 1499\n  },\n  \"invoice\": {\n    \"number\": \"{{invoiceNumber}}\",\n    \"date\": \"{{invoiceDate}}\",\n    \"value\": 1499\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/orders",
+            "description": "Creates a shipment and saves orderId for the following requests."
+          }
+        },
+        {
+          "name": "Get Order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/orders/{{orderId}}",
+            "description": "Returns the order saved in PostgreSQL without contacting the courier."
+          }
+        },
+        {
+          "name": "Track Order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/orders/{{orderId}}/track",
+            "description": "Gets current tracking information from the courier and saves new events."
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/orders/{{orderId}}/cancel",
+            "description": "Cancels the shipment. No request body is required."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Batches",
+      "item": [
+        {
+          "name": "Create Bulk Batch",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = Date.now();",
+                  "pm.collectionVariables.set('bulkOrderId', `EC-BULK-POSTMAN-${suffix}`);",
+                  "pm.collectionVariables.set('bulkInvoiceNumber', `INV-BULK-POSTMAN-${suffix}`);",
+                  "pm.collectionVariables.set('invoiceDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 202) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('batchId', body.data.batch_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orders\": [\n    {\n      \"order_id\": \"{{bulkOrderId}}\",\n      \"courier_partner\": \"{{courierPartner}}\",\n      \"service_level\": \"NEXT_DAY\",\n      \"consignee\": {\n        \"name\": \"Aarav Sharma\",\n        \"phone\": \"+919876543210\",\n        \"email\": \"aarav@example.com\",\n        \"address_line_1\": \"12 MG Road\",\n        \"address_type\": \"HOME\",\n        \"city\": \"Bengaluru\",\n        \"state\": \"Karnataka\",\n        \"country\": \"IN\",\n        \"postal_code\": \"560001\"\n      },\n      \"shipper\": {\n        \"name\": \"EaseCommerce Warehouse\",\n        \"phone\": \"+919811111111\",\n        \"address_line_1\": \"Plot 18, Sector 17\",\n        \"address_type\": \"BUSINESS\",\n        \"city\": \"Gurugram\",\n        \"state\": \"Haryana\",\n        \"country\": \"IN\",\n        \"postal_code\": \"122001\"\n      },\n      \"package\": {\n        \"weight_kg\": 1.25,\n        \"length_cm\": 20,\n        \"width_cm\": 15,\n        \"height_cm\": 10,\n        \"pieces\": 1,\n        \"item_description\": \"Cotton shirts\",\n        \"item_quantity\": 2\n      },\n      \"payment\": {\n        \"mode\": \"COD\",\n        \"collectable_amount\": 1499,\n        \"declared_value\": 1499\n      },\n      \"invoice\": {\n        \"number\": \"{{bulkInvoiceNumber}}\",\n        \"date\": \"{{invoiceDate}}\",\n        \"value\": 1499\n      }\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/orders/bulk",
+            "description": "Queues a shipment batch and saves batchId from the 202 response. The worker must be running."
+          }
+        },
+        {
+          "name": "Get Batch",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/batches/{{batchId}}",
+            "description": "Returns batch progress and per-order results."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Serviceability",
+      "item": [
+        {
+          "name": "Check Pincodes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/serviceability/pincodes?pincodes=122001,560001",
+            "description": "Checks pincode availability using the configured default courier."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "courierPartner", "value": "urbanebolt", "type": "string" },
+    { "key": "orderId", "value": "", "type": "string" },
+    { "key": "invoiceNumber", "value": "", "type": "string" },
+    { "key": "invoiceDate", "value": "", "type": "string" },
+    { "key": "bulkOrderId", "value": "", "type": "string" },
+    { "key": "bulkInvoiceNumber", "value": "", "type": "string" },
+    { "key": "batchId", "value": "", "type": "string" }
+  ]
+}

@@ -1,63 +1,90 @@
-# Design notes
+# Design
 
-## Why this shape
+## Architecture
 
-This service is a modular monolith with two runtime processes: an Express API and a BullMQ worker. They share domain services, courier adapters, repositories, and PostgreSQL. This keeps the assignment deployable and easy to explain while still separating synchronous HTTP work from asynchronous bulk processing.
+The application is a modular monolith with two processes:
 
-PostgreSQL is the source of truth. Redis coordinates background jobs but is not used as the permanent record of an order or batch.
+- **API server:** validates HTTP requests, applies business rules, stores data, calls couriers, and submits bulk jobs.
+- **Worker:** consumes BullMQ jobs and creates bulk shipments in the background.
+
+PostgreSQL is the source of truth. Redis is used only for BullMQ and readiness checks.
 
 ```text
-HTTP consumer
-    |
-    v
-Express routes -> services -> repositories -> PostgreSQL
-                       |
-                       v
-                courier registry
-                  /         \
-             MockCourier  UrbaneBolt
+Client / Swagger / Postman
+           |
+           v
+      Express API
+           |
+     routes + validation
+           |
+        services
+       /        \
+PostgreSQL    CourierRegistry
+              /            \
+       MockCourier       UrbaneBolt
 
-Bulk request -> PostgreSQL batch + queued orders -> BullMQ -> worker
-                                                        |
-                                                        v
-                                                   same services
+Bulk API -> PostgreSQL -> BullMQ/Redis -> Worker -> same OrderService
 ```
 
-## Adding another courier
+Routes and controllers handle HTTP concerns. Services contain business rules. Repositories contain Prisma queries. Presenters produce public responses without exposing stored courier audit payloads.
 
-A courier integration implements `CourierAdapter` and is registered at application startup. It owns request mapping, status mapping, transport behavior, and error translation. Order routes, normalized schemas, and business services do not change.
+## Design patterns
 
-This is deliberately an adapter/strategy design rather than a generic plugin framework. The boundary is explicit enough for the assignment and simple enough to debug.
+### Adapter and Strategy
 
-Optional features use narrower capability interfaces. Pincode availability implements `ServiceabilityAdapter`, so couriers can support shipment creation without being forced to implement every optional operation.
+Every courier implements `CourierAdapter`:
 
-## Consistency and idempotency
+```text
+createShipment
+trackShipment
+cancelShipment
+```
 
-- `order_id` has a database unique constraint.
-- The processing claim is an atomic conditional update, so concurrent requests cannot both call a courier.
-- An identical successful replay returns saved data; changed data returns `409 ORDER_ID_CONFLICT`.
-- Tracking history has a deduplication key and database triggers that reject updates and deletes.
-- Terminal shipment states are protected from stale tracking responses.
-- Bulk input is inserted in one PostgreSQL transaction before queueing.
-- If Redis rejects enqueueing, the saved batch and its orders are explicitly marked failed instead of remaining silently queued.
+`CourierRegistry` selects an adapter using `courier_partner`. `OrderService` depends on the interface rather than UrbaneBolt, so adding a courier does not change the order flow. MockCourier uses the same interface and proves that the integration is replaceable.
 
-The database insert and Redis enqueue are not a distributed transaction. A larger system would use a transactional outbox and a relay process. For this assignment, explicit enqueue-failure compensation and deterministic BullMQ job IDs provide a practical, explainable tradeoff.
+Serviceability uses a smaller optional interface because not every courier provides a pincode API.
 
-## Courier failure policy
+### Dependency injection
 
-Transient HTTP failures (`429`, `5xx`, timeouts, and network failures) use bounded exponential backoff with jitter. Ordinary courier validation failures are not retried. A `401` or `403` invalidates the cached UrbaneBolt token and replays the request once.
+`server.ts` creates repositories, services, adapters, and infrastructure clients and passes them into the application. Classes do not create hidden global dependencies. Tests can therefore supply MockCourier or lightweight test dependencies.
 
-A network failure during shipment creation can be ambiguous: the courier may have accepted the shipment before the connection failed. Such orders enter `RECONCILIATION_REQUIRED`; they are not blindly retried as ordinary failures.
+### Repository
 
-## Data exposure
+Order, tracking, and batch database operations are isolated in repositories. Business services do not contain raw Prisma queries.
 
-Normalized public presenters are separate from persistence models. Exact courier request/response and tracking payloads are stored for audit but never returned publicly. Passwords, authorization headers, cookies, and token fields are redacted from structured logs.
+## Database schema
 
-## Deliberate limits
+### `orders`
 
-- Indian shipments only (`country = IN`, six-digit postal codes).
-- `SAME_DAY` and `NEXT_DAY` service levels initially.
-- No distributed transaction between PostgreSQL and Redis.
-- Automated tests use MockCourier because UrbaneBolt credentials and UAT availability are external.
-- The public UrbaneBolt documentation provides no saved pincode response example, so response-shape interpretation is isolated in a defensive mapper and covered with fixtures.
-- Shipping labels remain an optional follow-up feature.
+Stores the external `order_id`, courier, normalized request, request fingerprint, AWB, courier shipment ID, shipment status, processing status, failure details, audit payloads, and optional batch relationship.
+
+`order_id` is unique and acts as the idempotency key.
+
+### `tracking_history`
+
+Stores normalized tracking events and their original courier payloads. A unique `(order_id, deduplication_key)` constraint prevents duplicate events. Tracking records are append-only.
+
+### `batches`
+
+Stores batch status, total orders, successful orders, and failed orders. Orders reference their batch through `batch_id`.
+
+## Reliability decisions
+
+- An identical successful `order_id` replay returns the saved shipment without another courier call.
+- Reusing an order ID with different data returns `409 ORDER_ID_CONFLICT`.
+- An atomic database update ensures only one concurrent request can call the courier.
+- Tracking events are deduplicated, and stale events cannot replace terminal states.
+- `401` and `403` responses refresh the cached UrbaneBolt token once.
+- Temporary failures use bounded exponential retries.
+- An uncertain create-shipment result becomes `RECONCILIATION_REQUIRED`; it is not blindly retried because that could create a duplicate shipment.
+- Bulk input is validated and stored before jobs are submitted to BullMQ.
+
+## Trade-offs
+
+The database write and Redis enqueue are not one transaction. The service compensates for enqueue failures by marking the batch and orders failed. A larger system would use a transactional outbox.
+
+BullMQ was selected instead of Kafka because this requirement is background job processing with retries and concurrency, not long-lived event streaming. It keeps the assignment small while still separating API response time from bulk courier calls.
+
+Raw courier payloads are stored for audit but removed from public responses. This improves supportability at the cost of additional database storage.
+
+The first version supports Indian addresses, six-digit pincodes, and `SAME_DAY`/`NEXT_DAY`. Shipping labels, reconciliation automation, and additional courier capabilities can be added behind the existing adapter boundary.
