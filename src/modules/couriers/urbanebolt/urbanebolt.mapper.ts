@@ -121,7 +121,7 @@ export function mapUrbaneBoltStatus(rawStatus: string): ShipmentStatus {
   if (containsAny(status, ['IN_TRANSIT', 'REACHED_HUB', 'DEPARTED_HUB'])) return 'IN_TRANSIT';
   if (containsAny(status, ['CANCELLED', 'CANCELED'])) return 'CANCELLED';
   if (containsAny(status, ['LOST', 'DAMAGED', 'DISPOSED'])) return 'FAILED';
-  if (containsAny(status, ['CREATED', 'BOOKED', 'MANIFESTED'])) return 'CREATED';
+  if (containsAny(status, ['CREATED', 'BOOKED', 'MANIFESTED', 'SUCCESS'])) return 'CREATED';
   return 'UNKNOWN';
 }
 
@@ -178,8 +178,10 @@ function toTrackingEvent(value: unknown): TrackingEvent {
 function unwrapResponseRecord(payload: CourierPayload): Record<string, unknown> {
   const rootValue = Array.isArray(payload) ? payload[0] : payload;
   const root = asRecord(rootValue) ?? {};
+  const successResponse = root.successResponse;
   const dataValue = root.data;
 
+  if (Array.isArray(successResponse)) return asRecord(successResponse[0]) ?? root;
   if (Array.isArray(dataValue)) return asRecord(dataValue[0]) ?? root;
   return asRecord(dataValue) ?? root;
 }

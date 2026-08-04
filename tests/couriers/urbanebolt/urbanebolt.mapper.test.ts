@@ -42,6 +42,30 @@ describe('UrbaneBolt mapper', () => {
     });
   });
 
+  it('extracts the AWB from the observed UrbaneBolt successResponse shape', () => {
+    const request = toUrbaneBoltManifest(shipment, 'UEB-TEST');
+    const response = {
+      status: 'Success',
+      errorResponse: [],
+      successResponse: [
+        {
+          status: 'Success',
+          awbNumber: 200000007161,
+          routeCode: 'INR/BLRH',
+          orderNumber: shipment.orderId,
+          customerCode: 'UEB-TEST',
+        },
+      ],
+    };
+
+    expect(fromUrbaneBoltManifestResponse(response, request)).toMatchObject({
+      courierShipmentId: '200000007161',
+      awbNumber: '200000007161',
+      status: 'CREATED',
+      courierStatus: 'Success',
+    });
+  });
+
   it('normalizes tracking history and preserves unknown statuses', () => {
     const result = fromUrbaneBoltTrackingResponse({
       data: {
