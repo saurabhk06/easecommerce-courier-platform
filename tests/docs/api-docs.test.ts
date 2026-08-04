@@ -57,13 +57,13 @@ describe('API documentation', () => {
   it('defines Swagger-compatible path parameters', async () => {
     const response = await request(app).get('/api-docs/openapi.json');
     const document = response.body as unknown as {
-      paths: Record<string, { parameters?: Array<{ name?: string; in?: string }> }>;
+      paths: Record<string, { get?: { parameters?: Array<{ name?: string; in?: string }> } }>;
     };
 
-    expect(document.paths['/api/v1/orders/{orderId}']?.parameters).toContainEqual(
+    expect(document.paths['/api/v1/orders/{orderId}']?.get?.parameters).toContainEqual(
       expect.objectContaining({ name: 'orderId', in: 'path' }),
     );
-    expect(document.paths['/api/v1/batches/{batchId}']?.parameters).toContainEqual(
+    expect(document.paths['/api/v1/batches/{batchId}']?.get?.parameters).toContainEqual(
       expect.objectContaining({ name: 'batchId', in: 'path' }),
     );
   });

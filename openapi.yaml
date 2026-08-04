@@ -119,19 +119,19 @@ paths:
         '503':
           $ref: '#/components/responses/DependencyUnavailable'
   /api/v1/orders/{orderId}:
-    parameters:
-      - name: orderId
-        in: path
-        required: true
-        schema:
-          type: string
-          pattern: '^[A-Za-z0-9_-]+$'
-          maxLength: 64
-        example: EC-URBANEBOLT-002
     get:
       tags: [Orders]
       summary: Retrieve a saved order
       operationId: getOrder
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_-]+$'
+            maxLength: 64
+          example: EC-URBANEBOLT-002
       responses:
         '200':
           description: Current normalized order state.
@@ -144,20 +144,20 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
   /api/v1/orders/{orderId}/track:
-    parameters:
-      - name: orderId
-        in: path
-        required: true
-        schema:
-          type: string
-          pattern: '^[A-Za-z0-9_-]+$'
-          maxLength: 64
-        example: EC-URBANEBOLT-002
     get:
       tags: [Orders]
       summary: Refresh and retrieve tracking history
       description: New courier events are appended and deduplicated; audit history is immutable.
       operationId: trackOrder
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_-]+$'
+            maxLength: 64
+          example: EC-URBANEBOLT-002
       responses:
         '200':
           description: Normalized current state and tracking history.
@@ -170,20 +170,20 @@ paths:
         '503':
           $ref: '#/components/responses/DependencyUnavailable'
   /api/v1/orders/{orderId}/cancel:
-    parameters:
-      - name: orderId
-        in: path
-        required: true
-        schema:
-          type: string
-          pattern: '^[A-Za-z0-9_-]+$'
-          maxLength: 64
-        example: EC-URBANEBOLT-002
     post:
       tags: [Orders]
       summary: Cancel a shipment
       description: Requires no request body. Repeating cancellation is a successful no-op.
       operationId: cancelOrder
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_-]+$'
+            maxLength: 64
+          example: EC-URBANEBOLT-002
       responses:
         '200':
           description: Shipment is cancelled.
@@ -198,17 +198,17 @@ paths:
         '503':
           $ref: '#/components/responses/DependencyUnavailable'
   /api/v1/batches/{batchId}:
-    parameters:
-      - name: batchId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
     get:
       tags: [Batches]
       summary: Retrieve batch progress and per-order results
       operationId: getBatch
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Current batch summary and normalized results.
