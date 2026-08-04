@@ -46,7 +46,12 @@ const worker = createShipmentWorker(workerRedis, 3, {
   batches: batchRepository,
   logger,
 });
-const app = createApp({ logger, orderService, batchService });
+const app = createApp({
+  logger,
+  orderService,
+  batchService,
+  defaultCourierPartner: 'mock',
+});
 
 describe('bulk order API', () => {
   beforeAll(async () => {

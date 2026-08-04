@@ -53,7 +53,7 @@ git checkout develop
 cp .env.example .env
 ```
 
-The placeholder UrbaneBolt values are enough to run MockCourier. Real UAT credentials are needed only when the `urbanebolt` Swagger example is selected.
+UrbaneBolt is the default courier. Add the supplied UAT credentials before creating shipments. MockCourier remains available by explicitly sending `courier_partner: mock`.
 
 ### 3. Start PostgreSQL and Redis
 
@@ -116,12 +116,7 @@ The machine-readable contract is available at:
 http://localhost:3000/api-docs/openapi.json
 ```
 
-Swagger contains preconfigured examples:
-
-- `MockCourier - ready to run` works immediately after setup.
-- `UrbaneBolt UAT` already contains `courier_partner: urbanebolt`; select it when real UAT credentials have been added to `.env`.
-
-The evaluator does not need to manually change `courier_partner` in either example.
+Swagger uses an `UrbaneBolt UAT` example by default. It already contains `courier_partner: urbanebolt`, so the evaluator does not need to edit the courier field. If `courier_partner` is omitted from an order or bulk-order item, the API uses `DEFAULT_COURIER_PARTNER`, which is configured as `urbanebolt`.
 
 ## Environment variables
 
@@ -139,6 +134,7 @@ The evaluator does not need to manually change `courier_partner` in either examp
 | `COURIER_TIMEOUT_MS`          | No             | `5000`                                                                         | Outbound courier request timeout                                |
 | `COURIER_RETRY_COUNT`         | No             | `3`                                                                            | Transient courier retry count                                   |
 | `COURIER_RETRY_BASE_DELAY_MS` | No             | `250`                                                                          | Base delay for exponential retry backoff                        |
+| `DEFAULT_COURIER_PARTNER`     | No             | `urbanebolt`                                                                   | Courier used when an order or serviceability request omits it   |
 | `URBANEBOLT_BASE_URL`         | Yes            | `https://uat.urbanebolt.in`                                                    | UrbaneBolt UAT base URL                                         |
 | `URBANEBOLT_USERNAME`         | For UrbaneBolt | `replace-me`                                                                   | UAT API username                                                |
 | `URBANEBOLT_PASSWORD`         | For UrbaneBolt | `replace-me`                                                                   | UAT API password                                                |

@@ -1,6 +1,6 @@
 # API examples
 
-These examples use MockCourier, so they are safe to run without UrbaneBolt credentials. Start the API and worker in separate terminals before running the bulk example.
+These examples use the configured default courier, UrbaneBolt. Add valid UrbaneBolt UAT credentials to `.env` before running them. Start the API and worker in separate terminals before running the bulk example.
 
 ```bash
 pnpm dev
@@ -17,7 +17,6 @@ curl --request POST 'http://localhost:3000/api/v1/orders' \
   --header 'x-request-id: local-create-demo' \
   --data '{
     "order_id": "EC-DEMO-001",
-    "courier_partner": "mock",
     "service_level": "NEXT_DAY",
     "consignee": {
       "name": "Aarav Sharma",
@@ -85,7 +84,6 @@ curl --request POST 'http://localhost:3000/api/v1/orders/bulk' \
     "orders": [
       {
         "order_id": "EC-BULK-DEMO-001",
-        "courier_partner": "mock",
         "service_level": "NEXT_DAY",
         "consignee": {
           "name": "Aarav Sharma",
@@ -141,10 +139,10 @@ Poll until the status becomes `COMPLETED`, `PARTIALLY_COMPLETED`, or `FAILED`.
 
 ## Check pincode availability
 
-Up to 50 unique pincodes can be checked in one request. MockCourier makes this example deterministic:
+Up to 50 unique pincodes can be checked in one request. Omitting `courier_partner` uses the configured UrbaneBolt default:
 
 ```bash
-curl 'http://localhost:3000/api/v1/serviceability/pincodes?courier_partner=mock&pincodes=122001,122017,560001'
+curl 'http://localhost:3000/api/v1/serviceability/pincodes?pincodes=122001,122017,560001'
 ```
 
-The response contains one `{ pincode, available }` result for every requested value. Use `courier_partner=urbanebolt` to call the authenticated UrbaneBolt pincode endpoint.
+The response contains one `{ pincode, available }` result for every requested value. Send `courier_partner=mock` only when you intentionally want the local deterministic adapter.

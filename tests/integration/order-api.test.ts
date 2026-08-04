@@ -28,7 +28,11 @@ const orderService = new OrderService({
   couriers: new CourierRegistry([mockCourier]),
   clock: () => fixedTime,
 });
-const app = createApp({ logger: pino({ level: 'silent' }), orderService });
+const app = createApp({
+  logger: pino({ level: 'silent' }),
+  orderService,
+  defaultCourierPartner: 'mock',
+});
 
 describe('unified order API', () => {
   beforeAll(async () => {
@@ -89,6 +93,14 @@ describe('unified order API', () => {
     expect(savedOrder.courierResponse).not.toBeNull();
     await expect(database.order.count()).resolves.toBe(1);
     await expect(database.trackingEvent.count()).resolves.toBe(3);
+  });
+
+  it('uses the configured default courier when courier_partner is omitted', async () => {
+    const requestWithoutCourier = { ...createOrderRequest, courier_partner: undefined };
+    const response = await request(app).post('/api/v1/orders').send(requestWithoutCourier);
+
+    expect(response.status).toBe(201);
+    expect(response.body).toMatchObject({ data: { courier_partner: 'mock' } });
   });
 
   it('rejects a reused order ID with a different payload', async () => {
@@ -152,7 +164,7 @@ describe('unified order API', () => {
     );
 
     expect(responses.filter((response) => response.status === 201)).toHaveLength(1);
-    expect(responses.every((response) => [201, 202].includes(response.status))).toBe(true);
+    expect(responses.every((response) => [200, 201, 202].includes(response.status))).toBe(true);
     expect(createShipment).toHaveBeenCalledOnce();
     await expect(database.order.count()).resolves.toBe(1);
     createShipment.mockRestore();

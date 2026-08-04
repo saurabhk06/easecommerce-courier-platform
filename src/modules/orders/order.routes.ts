@@ -8,11 +8,17 @@ import {
   getOrderController,
   trackOrderController,
 } from './order.controller.js';
-import { bulkOrderSchema, createOrderSchema } from './order.schema.js';
+import { createBulkOrderSchemaWithDefault, createOrderSchemaWithDefault } from './order.schema.js';
 import type { OrderService } from './order.service.js';
 
-export function createOrderRouter(service: OrderService, batchService?: BatchService): Router {
+export function createOrderRouter(
+  service: OrderService,
+  batchService?: BatchService,
+  defaultCourierPartner = 'urbanebolt',
+): Router {
   const router = Router();
+  const createOrderSchema = createOrderSchemaWithDefault(defaultCourierPartner);
+  const bulkOrderSchema = createBulkOrderSchemaWithDefault(defaultCourierPartner);
 
   if (batchService) {
     router.post('/bulk', validateBody(bulkOrderSchema), createBatchController(batchService));

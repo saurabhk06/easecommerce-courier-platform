@@ -46,6 +46,7 @@ async function start(): Promise<void> {
     orderService,
     batchService,
     serviceabilityService,
+    defaultCourierPartner: env.DEFAULT_COURIER_PARTNER,
   });
 
   server = app.listen(env.PORT, () => {

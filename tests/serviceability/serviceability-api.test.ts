@@ -9,7 +9,11 @@ import { ServiceabilityService } from '../../src/modules/serviceability/servicea
 const serviceabilityService = new ServiceabilityService(
   new CourierRegistry([new MockCourierAdapter({ serviceablePincodes: ['122001', '560001'] })]),
 );
-const app = createApp({ logger: pino({ level: 'silent' }), serviceabilityService });
+const app = createApp({
+  logger: pino({ level: 'silent' }),
+  serviceabilityService,
+  defaultCourierPartner: 'mock',
+});
 
 describe('pincode serviceability API', () => {
   it('returns one normalized availability result per requested pincode', async () => {
@@ -28,6 +32,15 @@ describe('pincode serviceability API', () => {
         ],
       },
     });
+  });
+
+  it('uses the configured default courier when courier_partner is omitted', async () => {
+    const response = await request(app).get(
+      '/api/v1/serviceability/pincodes?pincodes=122001,560001',
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ data: { courier_partner: 'mock' } });
   });
 
   it('rejects malformed, duplicate, and unsupported courier queries', async () => {

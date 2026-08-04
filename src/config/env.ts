@@ -11,6 +11,7 @@ const environmentSchema = z.object({
   COURIER_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
   COURIER_RETRY_COUNT: z.coerce.number().int().min(0).max(10).default(3),
   COURIER_RETRY_BASE_DELAY_MS: z.coerce.number().int().positive().default(250),
+  DEFAULT_COURIER_PARTNER: z.enum(['urbanebolt', 'mock']).default('urbanebolt'),
   URBANEBOLT_BASE_URL: z.url(),
   URBANEBOLT_USERNAME: z.string().min(1),
   URBANEBOLT_PASSWORD: z.string().min(1),

@@ -20,6 +20,7 @@ type AppDependencies = {
   orderService?: OrderService;
   batchService?: BatchService;
   serviceabilityService?: ServiceabilityService;
+  defaultCourierPartner?: string;
 };
 
 export function createApp({
@@ -28,6 +29,7 @@ export function createApp({
   orderService,
   batchService,
   serviceabilityService,
+  defaultCourierPartner = 'urbanebolt',
 }: AppDependencies): Express {
   const app = express();
 
@@ -45,10 +47,15 @@ export function createApp({
 
   app.use('/health', createHealthRouter(readinessChecks));
   app.use('/api-docs', createApiDocsRouter());
-  if (orderService) app.use('/api/v1/orders', createOrderRouter(orderService, batchService));
+  if (orderService) {
+    app.use('/api/v1/orders', createOrderRouter(orderService, batchService, defaultCourierPartner));
+  }
   if (batchService) app.use('/api/v1/batches', createBatchRouter(batchService));
   if (serviceabilityService) {
-    app.use('/api/v1/serviceability', createServiceabilityRouter(serviceabilityService));
+    app.use(
+      '/api/v1/serviceability',
+      createServiceabilityRouter(serviceabilityService, defaultCourierPartner),
+    );
   }
 
   app.use(notFound);

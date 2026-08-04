@@ -60,8 +60,6 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateOrderRequest'
             examples:
-              mockCourier:
-                $ref: '#/components/examples/CreateMockOrder'
               urbaneBoltUat:
                 $ref: '#/components/examples/CreateUrbaneBoltOrder'
       responses:
@@ -203,10 +201,12 @@ paths:
       parameters:
         - name: courier_partner
           in: query
-          required: true
+          required: false
+          description: Optional; defaults to UrbaneBolt.
           schema:
             type: string
             enum: [mock, urbanebolt]
+            default: urbanebolt
         - name: pincodes
           in: query
           required: true
@@ -377,7 +377,6 @@ components:
       additionalProperties: false
       required:
         - order_id
-        - courier_partner
         - service_level
         - consignee
         - shipper
@@ -392,6 +391,8 @@ components:
         courier_partner:
           type: string
           enum: [mock, urbanebolt]
+          default: urbanebolt
+          description: Optional; defaults to the configured UrbaneBolt partner.
         service_level:
           type: string
           enum: [SAME_DAY, NEXT_DAY]

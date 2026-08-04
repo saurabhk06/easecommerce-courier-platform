@@ -21,6 +21,7 @@ describe('parseEnvironment', () => {
       COURIER_RETRY_COUNT: 3,
       BULK_WORKER_CONCURRENCY: 5,
       BULK_JOB_ATTEMPTS: 3,
+      DEFAULT_COURIER_PARTNER: 'urbanebolt',
     });
   });
 
